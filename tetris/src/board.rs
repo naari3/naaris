@@ -3,7 +3,7 @@ use std::fmt::Display;
 use arrayvec::ArrayVec;
 use rand::{prelude::SliceRandom, thread_rng};
 
-use crate::{Cell, Piece, PieceState, TetrisError};
+use crate::{Cell, FallingPiece, Piece, PieceState, TetrisError};
 
 #[derive(Debug, Clone)]
 pub struct Board {
@@ -63,19 +63,12 @@ impl Display for Board {
 }
 
 impl Board {
-    pub fn set_piece(&mut self, piece: &PieceState, x: usize, y: usize) -> Result<(), TetrisError> {
-        for (rel_x, rel_y) in piece.get_cells().into_iter() {
+    pub fn set_piece(&mut self, piece: &FallingPiece) -> Result<(), TetrisError> {
+        let (x, y) = piece.piece_position;
+        for (rel_x, rel_y) in piece.piece_state.get_cells().into_iter() {
             if let Some(cells_x) = self.cells.get_mut((-rel_y + y as i16) as usize) {
                 if let Some(cell) = cells_x.get_mut((rel_x + x as i16) as usize) {
-                    *cell = Some(match piece.get_kind() {
-                        Piece::I => Cell::Cyan,
-                        Piece::O => Cell::Yellow,
-                        Piece::T => Cell::Purple,
-                        Piece::L => Cell::Blue,
-                        Piece::J => Cell::Orange,
-                        Piece::S => Cell::Green,
-                        Piece::Z => Cell::Red,
-                    });
+                    *cell = Some(piece.piece_state.get_kind().into());
                 } else {
                     return Err(TetrisError::OutOfRange);
                 }
@@ -86,9 +79,9 @@ impl Board {
         Ok(())
     }
 
-    pub fn check_collision(&mut self, piece: PieceState, x: usize, y: usize) -> bool {
+    pub fn check_collision(&self, piece: PieceState, x: usize, y: usize) -> bool {
         for (rel_x, rel_y) in piece.get_cells().into_iter() {
-            if let Some(cells_x) = self.cells.get_mut((-rel_y + y as i16) as usize) {
+            if let Some(cells_x) = self.cells.clone().get_mut((-rel_y + y as i16) as usize) {
                 if let Some(cell) = cells_x.get_mut((rel_x + x as i16) as usize) {
                     if let Some(_) = *cell {
                         return true;

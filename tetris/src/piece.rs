@@ -1,6 +1,47 @@
 use num_enum::IntoPrimitive;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 
+use crate::Board;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FallingPiece {
+    pub piece_state: PieceState,
+    pub piece_position: (usize, usize),
+}
+
+impl FallingPiece {
+    pub fn from_piece_state(piece_state: PieceState) -> Self {
+        let piece_position = piece_state.get_initial_position();
+        Self {
+            piece_state,
+            piece_position,
+        }
+    }
+    pub fn shift(&mut self, board: &Board, x: i32, y: i32) -> bool {
+        if self.check_shift_collision(board, x, y) {
+            false
+        } else {
+            let new_position = (
+                (self.piece_position.0 as i32 + x) as usize,
+                (self.piece_position.1 as i32 + y) as usize,
+            );
+            self.piece_position = new_position;
+            true
+        }
+    }
+    pub fn check_shift_collision(&self, board: &Board, x: i32, y: i32) -> bool {
+        let new_position = (
+            (self.piece_position.0 as i32 + x) as usize,
+            (self.piece_position.1 as i32 + y) as usize,
+        );
+        if board.check_collision(self.piece_state, new_position.0, new_position.1) {
+            true
+        } else {
+            false
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Rotation {
     North,

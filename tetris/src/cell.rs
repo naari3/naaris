@@ -1,3 +1,4 @@
+use crate::Piece;
 use std::fmt::Display;
 
 #[cfg(not(windows))]
@@ -15,6 +16,22 @@ pub enum Cell {
     Blue,
     Purple,
     Glay,
+}
+
+impl From<Piece> for Cell {
+    fn from(p: Piece) -> Self {
+        use Cell::*;
+        use Piece::*;
+        match p {
+            I => Cyan,
+            O => Yellow,
+            T => Purple,
+            L => Blue,
+            J => Orange,
+            S => Green,
+            Z => Red,
+        }
+    }
 }
 
 impl Display for Cell {
