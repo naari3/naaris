@@ -16,12 +16,13 @@ pub enum TetrisError {
     OutOfRange,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Input {
-    left: bool,
-    right: bool,
-    hard_drop: bool,
-    soft_drop: bool,
-    cw: bool,
-    ccw: bool,
-    hold: bool,
+    pub left: bool,
+    pub right: bool,
+    pub hard_drop: bool,
+    pub soft_drop: bool,
+    pub cw: bool,
+    pub ccw: bool,
+    pub hold: bool,
 }

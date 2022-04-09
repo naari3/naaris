@@ -3,11 +3,12 @@ extern crate piston_window;
 use graphics::color::{BLACK, BLUE, CYAN, GRAY, GREEN, PURPLE, RED, WHITE, YELLOW};
 use opengl_graphics::GlGraphics;
 use piston_window::*;
-use tetris::{Cell, Game};
+use tetris::{Cell, Game, Input};
 
 pub struct App {
     gl: GlGraphics, // OpenGL drawing backend.
     game: Game,     // Game
+    input: Input,   // Input
 }
 const CELL_SIZE: f64 = 16.0;
 
@@ -75,8 +76,44 @@ impl App {
         rectangle(color, square, transform, gl);
     }
 
-    fn update(&mut self, _: &UpdateArgs) {
-        self.game.update()
+    fn update(&mut self) {
+        self.game.set_input(self.input);
+        self.game.update();
+    }
+
+    fn input(&mut self, args: &ButtonArgs) {
+        use Key::*;
+        let state = match args.state {
+            ButtonState::Press => true,
+            ButtonState::Release => false,
+        };
+        match args.button {
+            Button::Keyboard(key) => match key {
+                J => {
+                    self.input.ccw = state;
+                }
+                K => {
+                    self.input.cw = state;
+                }
+                Space => {
+                    self.input.hold = state;
+                }
+                D => {
+                    self.input.left = state;
+                }
+                A => {
+                    self.input.right = state;
+                }
+                W => {
+                    self.input.hard_drop = state;
+                }
+                S => {
+                    self.input.soft_drop = state;
+                }
+                _ => {}
+            },
+            _ => {}
+        }
     }
 }
 
@@ -93,17 +130,17 @@ fn main() {
     let mut app = App {
         gl: GlGraphics::new(opengl),
         game: Game::new(),
+        input: Default::default(),
     };
     while let Some(event) = window.next() {
         if let Some(args) = event.render_args() {
+            app.update();
             app.render(&args);
         }
-        if let Some(args) = event.update_args() {
-            app.update(&args);
-        }
+        if let Some(args) = event.update_args() {}
 
         if let Some(args) = event.button_args() {
-            println!("{:?}", args)
+            app.input(&args);
         }
     }
 }

@@ -26,6 +26,7 @@ impl FallingPiece {
                 (self.piece_position.1 as i32 + y) as usize,
             );
             self.piece_position = new_position;
+
             true
         }
     }
@@ -39,6 +40,24 @@ impl FallingPiece {
         } else {
             false
         }
+    }
+    pub fn cw(&mut self, board: &Board) -> bool {
+        self.piece_state.cw();
+        println!("{:?}", self.piece_state);
+        if self.check_shift_collision(board, 0, 0) {
+            self.piece_state.ccw();
+            return false;
+        };
+        true
+    }
+    pub fn ccw(&mut self, board: &Board) -> bool {
+        self.piece_state.ccw();
+        println!("{:?}", self.piece_state);
+        if self.check_shift_collision(board, 0, 0) {
+            self.piece_state.cw();
+            return false;
+        };
+        true
     }
 }
 
@@ -57,7 +76,7 @@ impl Rotation {
             North => *self = East,
             East => *self = South,
             South => *self = West,
-            West => *self = South,
+            West => *self = North,
         }
     }
 
@@ -65,9 +84,9 @@ impl Rotation {
         use Rotation::*;
         match self {
             North => *self = West,
-            East => *self = South,
+            East => *self = North,
             South => *self = East,
-            West => *self = North,
+            West => *self = South,
         }
     }
 }

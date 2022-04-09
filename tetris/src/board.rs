@@ -116,4 +116,34 @@ impl Board {
 
         next
     }
+
+    pub fn line_clear(&mut self) -> Option<usize> {
+        let mut cleared_lines = 0;
+        for cells_x in self.cells.iter_mut() {
+            if cells_x.iter().all(|d| d.is_some()) {
+                *cells_x = ArrayVec::from([None; 10]);
+                cleared_lines += 1;
+            }
+        }
+        if cleared_lines != 0 {
+            Some(cleared_lines)
+        } else {
+            None
+        }
+    }
+
+    pub fn line_shrink(&mut self) {
+        let mut lines = vec![];
+        for (y, cells_x) in self.cells.iter_mut().enumerate() {
+            if cells_x.iter().all(|d| d.is_none()) {
+                lines.push(y);
+            }
+        }
+        for y in lines.iter().rev() {
+            self.cells.remove(*y);
+        }
+        for _ in 0..lines.len() {
+            self.cells.insert(0, ArrayVec::from([None; 10]));
+        }
+    }
 }
