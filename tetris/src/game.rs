@@ -158,11 +158,15 @@ impl Game {
     fn handle_rotate(&mut self) {
         if !self.previous_input.cw && self.input.cw {
             if let Some(current_piece) = self.current_piece.as_mut() {
-                current_piece.cw(&self.board);
+                if current_piece.cw(&self.board) {
+                    self.lock_counter = 0;
+                };
             }
         } else if !self.previous_input.ccw && self.input.ccw {
             if let Some(current_piece) = self.current_piece.as_mut() {
-                current_piece.ccw(&self.board);
+                if current_piece.ccw(&self.board) {
+                    self.lock_counter = 0;
+                };
             }
         }
     }
@@ -193,14 +197,18 @@ impl Game {
             if self.das_counter == 0 {
                 self.das_counter += 1;
                 if let Some(current_piece) = self.current_piece.as_mut() {
-                    current_piece.shift(&self.board, 1, 0);
+                    if current_piece.shift(&self.board, 1, 0) {
+                        self.lock_counter = 0;
+                    };
                 }
             }
             if self.input.left == self.previous_input.left {
                 self.das_counter += 1;
                 if self.das_counter >= self.das {
                     if let Some(current_piece) = self.current_piece.as_mut() {
-                        current_piece.shift(&self.board, 1, 0);
+                        if current_piece.shift(&self.board, 1, 0) {
+                            self.lock_counter = 0;
+                        };
                     }
                 }
             }
@@ -212,14 +220,18 @@ impl Game {
             if self.das_counter == 0 {
                 self.das_counter += 1;
                 if let Some(current_piece) = self.current_piece.as_mut() {
-                    current_piece.shift(&self.board, -1, 0);
+                    if current_piece.shift(&self.board, -1, 0) {
+                        self.lock_counter = 0;
+                    };
                 }
             }
             if self.input.right == self.previous_input.right {
                 self.das_counter += 1;
                 if self.das_counter >= self.das {
                     if let Some(current_piece) = self.current_piece.as_mut() {
-                        current_piece.shift(&self.board, -1, 0);
+                        if current_piece.shift(&self.board, -1, 0) {
+                            self.lock_counter = 0;
+                        };
                     }
                 }
             }
