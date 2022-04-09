@@ -28,7 +28,8 @@ pub struct Game {
     das_counter: usize,
     das_state: DasState,
     are: usize,
-    are_counter: usize,
+    line_are: usize,
+    are_counter: Option<usize>,
     line_clear_lock: usize,
     line_clear_lock_timer: Option<usize>,
 }
@@ -80,7 +81,8 @@ impl Game {
             das_counter: 0,
             das_state: Default::default(),
             are: 25,
-            are_counter: 0,
+            line_are: 25,
+            are_counter: None,
             line_clear_lock: 40,
             line_clear_lock_timer: None,
         }
@@ -95,12 +97,14 @@ impl Game {
                     self.board.line_shrink();
                 }
             } else {
-                if self.are_counter >= self.are {
-                    let next_piece = PieceState::from_piece(self.board.pop_next());
-                    self.current_piece = FallingPiece::from_piece_state(next_piece).into();
-                    self.are_counter = 0;
-                } else {
-                    self.are_counter += 1;
+                if let Some(are_counter) = self.are_counter.as_mut() {
+                    println!("are_counter: {are_counter}");
+                    *are_counter -= 1;
+                    if *are_counter <= 0 {
+                        let next_piece = PieceState::from_piece(self.board.pop_next());
+                        self.current_piece = FallingPiece::from_piece_state(next_piece).into();
+                        self.are_counter = None;
+                    }
                 }
             }
         }
@@ -147,6 +151,7 @@ impl Game {
     fn apply_line_clear(&mut self) {
         if let Some(_lines) = self.board.line_clear() {
             self.line_clear_lock_timer = Some(self.line_clear_lock);
+            self.are_counter = Some(self.line_are);
         };
     }
 
@@ -166,10 +171,12 @@ impl Game {
         if !self.previous_input.hard_drop && self.input.hard_drop {
             if let Some(current_piece) = self.current_piece.as_mut() {
                 for i in 0..20 {
-                    if current_piece.shift(&self.board, 0, 20 - i) {
+                    if current_piece.check_shift_collision(&self.board, 0, i) {
+                        current_piece.shift(&self.board, 0, i - 1);
                         self.board.set_piece(&current_piece).unwrap();
                         self.current_piece = None;
                         self.lock_counter = 0;
+                        self.are_counter = Some(self.are);
                         break;
                     };
                 }
