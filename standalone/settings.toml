@@ -1,5 +1,13 @@
+[game]
+gravity = 20.0
+are = 10
+line_are = 6
+das = 8
+lock_delay = 18
+line_clear_delay = 6
+
 # http://sdl2referencejp.osdn.jp/SDLKeycodeLookup.html
-[key_config]
+[key]
 left = 100
 right = 97
 soft_drop = 115

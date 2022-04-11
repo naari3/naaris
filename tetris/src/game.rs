@@ -114,6 +114,40 @@ impl Game {
         }
     }
 
+    pub fn from_settings(
+        gravity: f64,
+        are: usize,
+        line_are: usize,
+        das: usize,
+        lock_delay: usize,
+        line_clear_delay: usize,
+    ) -> Self {
+        let mut board = Board::default();
+        let next = board.pop_next();
+        let current_piece = FallingPiece::from_piece_state(PieceState::from_piece(next));
+
+        Self {
+            board,
+            current_piece: Some(current_piece),
+            gravity,
+            shift_down_counter: 0.0,
+            lock_delay,
+            lock_counter: 0,
+            input: Default::default(),
+            previous_input: Default::default(),
+            sound_queue: vec![],
+            das,
+            das_counter: 0,
+            das_state: Default::default(),
+            are,
+            line_are,
+            are_counter: None,
+            line_clear_lock: line_clear_delay,
+            line_clear_lock_timer: None,
+            hold_used: false,
+        }
+    }
+
     pub fn update(&mut self) {
         if let None = self.current_piece {
             if let Some(line_clear_lock_timer) = self.line_clear_lock_timer.as_mut() {

@@ -1,5 +1,3 @@
-use std::fs::read_to_string;
-
 use graphics::{
     clear,
     color::{BLACK, BLUE, CYAN, GRAY, GREEN, PURPLE, RED, WHITE, YELLOW},
@@ -8,27 +6,11 @@ use graphics::{
 use piston_window::{
     Button, ButtonArgs, ButtonState, Context, G2d, Graphics, RenderArgs, Transformed,
 };
-use serde_derive::Deserialize;
 use tetris::{Cell, Game, Input};
 
+use crate::settings::Settings;
+
 const ORANGE: [f32; 4] = [1.0, 0.75, 0.0, 1.0];
-
-#[derive(Deserialize)]
-pub struct Settings {
-    key_config: KeyConfig,
-}
-
-#[derive(Deserialize)]
-pub struct KeyConfig {
-    left: usize,
-    right: usize,
-    soft_drop: usize,
-    hard_drop: usize,
-    cw: usize,
-    ccw: usize,
-    hold: usize,
-    restart: usize,
-}
 
 pub struct App {
     game: Game,   // Game
@@ -38,9 +20,7 @@ pub struct App {
 pub const CELL_SIZE: f64 = 16.0;
 
 impl App {
-    pub fn new(game: Game) -> Self {
-        let settings_str = read_to_string("./settings.toml").unwrap();
-        let settings = toml::from_str(&settings_str).unwrap();
+    pub fn new(game: Game, settings: Settings) -> Self {
         Self {
             game,
             input: Default::default(),
@@ -265,29 +245,36 @@ impl App {
                 //     self.game = Game::new();
                 // }
                 _ => {
-                    if self.settings.key_config.left == key.code() as _ {
+                    if self.settings.key.left == key.code() as _ {
                         self.input.left = state;
                     }
-                    if self.settings.key_config.right == key.code() as _ {
+                    if self.settings.key.right == key.code() as _ {
                         self.input.right = state;
                     }
-                    if self.settings.key_config.hard_drop == key.code() as _ {
+                    if self.settings.key.hard_drop == key.code() as _ {
                         self.input.hard_drop = state;
                     }
-                    if self.settings.key_config.soft_drop == key.code() as _ {
+                    if self.settings.key.soft_drop == key.code() as _ {
                         self.input.soft_drop = state;
                     }
-                    if self.settings.key_config.cw == key.code() as _ {
+                    if self.settings.key.cw == key.code() as _ {
                         self.input.cw = state;
                     }
-                    if self.settings.key_config.ccw == key.code() as _ {
+                    if self.settings.key.ccw == key.code() as _ {
                         self.input.ccw = state;
                     }
-                    if self.settings.key_config.hold == key.code() as _ {
+                    if self.settings.key.hold == key.code() as _ {
                         self.input.hold = state;
                     }
-                    if self.settings.key_config.restart == key.code() as _ && !state {
-                        self.game = Game::new();
+                    if self.settings.key.restart == key.code() as _ && !state {
+                        self.game = Game::from_settings(
+                            self.settings.game.gravity,
+                            self.settings.game.are,
+                            self.settings.game.line_are,
+                            self.settings.game.das,
+                            self.settings.game.lock_delay,
+                            self.settings.game.line_clear_delay,
+                        );
                     }
 
                     println!("key.code(): {}", key.code());

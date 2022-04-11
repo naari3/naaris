@@ -1,11 +1,15 @@
 extern crate piston_window;
 
 mod app;
+mod settings;
 mod sound;
+
+use std::fs::read_to_string;
 
 use app::{App, CELL_SIZE};
 
 use piston_window::{ButtonEvent, EventLoop, PistonWindow, RenderEvent, WindowSettings};
+use settings::Settings;
 use tetris::{Game, Music, Sound};
 
 fn main() {
@@ -18,7 +22,18 @@ fn main() {
     .unwrap();
     window.set_max_fps(60);
 
-    let mut app = App::new(Game::new());
+    let settings_str = read_to_string("./settings.toml").unwrap();
+    let settings: Settings = toml::from_str(&settings_str).unwrap();
+
+    let game = Game::from_settings(
+        settings.game.gravity,
+        settings.game.are,
+        settings.game.line_are,
+        settings.game.das,
+        settings.game.lock_delay,
+        settings.game.line_clear_delay,
+    );
+    let mut app = App::new(game, settings);
     music::start::<Music, Sound, _>(16, || {
         sound::init();
         music::set_volume(0.5);
