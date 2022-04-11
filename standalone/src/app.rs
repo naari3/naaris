@@ -1,3 +1,5 @@
+use std::fs::read_to_string;
+
 use graphics::{
     clear,
     color::{BLACK, BLUE, CYAN, GRAY, GREEN, PURPLE, RED, WHITE, YELLOW},
@@ -6,21 +8,43 @@ use graphics::{
 use piston_window::{
     Button, ButtonArgs, ButtonState, Context, G2d, Graphics, RenderArgs, Transformed,
 };
+use serde_derive::Deserialize;
 use tetris::{Cell, Game, Input};
 
 const ORANGE: [f32; 4] = [1.0, 0.75, 0.0, 1.0];
 
+#[derive(Deserialize)]
+pub struct Settings {
+    key_config: KeyConfig,
+}
+
+#[derive(Deserialize)]
+pub struct KeyConfig {
+    left: usize,
+    right: usize,
+    soft_drop: usize,
+    hard_drop: usize,
+    cw: usize,
+    ccw: usize,
+    hold: usize,
+    restart: usize,
+}
+
 pub struct App {
     game: Game,   // Game
     input: Input, // Input
+    settings: Settings,
 }
 pub const CELL_SIZE: f64 = 16.0;
 
 impl App {
     pub fn new(game: Game) -> Self {
+        let settings_str = read_to_string("./settings.toml").unwrap();
+        let settings = toml::from_str(&settings_str).unwrap();
         Self {
             game,
             input: Default::default(),
+            settings,
         }
     }
 
@@ -190,41 +214,71 @@ impl App {
         let sound_queue = self.game.get_sound_queue();
         while sound_queue.len() > 0 {
             if let Some(sound) = sound_queue.pop() {
-                music::play_sound(&sound, music::Repeat::Times(0), 0.5)
+                music::play_sound(&sound, music::Repeat::Times(0), 0.25);
             };
         }
     }
 
     pub fn input(&mut self, args: &ButtonArgs) {
-        use piston_window::Key::*;
         let state = match args.state {
             ButtonState::Press => true,
             ButtonState::Release => false,
         };
         match args.button {
             Button::Keyboard(key) => match key {
-                J => {
-                    self.input.ccw = state;
+                // J => {
+                //     self.input.ccw = state;
+                // }
+                // K => {
+                //     self.input.cw = state;
+                // }
+                // Space => {
+                //     self.input.hold = state;
+                // }
+                // D => {
+                //     self.input.left = state;
+                // }
+                // A => {
+                //     self.input.right = state;
+                // }
+                // W => {
+                //     self.input.hard_drop = state;
+                // }
+                // S => {
+                //     self.input.soft_drop = state;
+                // }
+                // R => {
+                //     self.game = Game::new();
+                // }
+                _ => {
+                    if self.settings.key_config.left == key.code() as _ {
+                        self.input.left = state;
+                    }
+                    if self.settings.key_config.right == key.code() as _ {
+                        self.input.right = state;
+                    }
+                    if self.settings.key_config.hard_drop == key.code() as _ {
+                        self.input.hard_drop = state;
+                    }
+                    if self.settings.key_config.soft_drop == key.code() as _ {
+                        self.input.soft_drop = state;
+                    }
+                    if self.settings.key_config.cw == key.code() as _ {
+                        self.input.cw = state;
+                    }
+                    if self.settings.key_config.ccw == key.code() as _ {
+                        self.input.ccw = state;
+                    }
+                    if self.settings.key_config.hold == key.code() as _ {
+                        self.input.hold = state;
+                    }
+                    if self.settings.key_config.restart == key.code() as _ && !state {
+                        self.game = Game::new();
+                    }
+
+                    println!("key.code(): {}", key.code());
+                    // self.settings.key_config
                 }
-                K => {
-                    self.input.cw = state;
-                }
-                Space => {
-                    self.input.hold = state;
-                }
-                D => {
-                    self.input.left = state;
-                }
-                A => {
-                    self.input.right = state;
-                }
-                W => {
-                    self.input.hard_drop = state;
-                }
-                S => {
-                    self.input.soft_drop = state;
-                }
-                _ => {}
             },
             _ => {}
         }

@@ -1,0 +1,10 @@
+# http://sdl2referencejp.osdn.jp/SDLKeycodeLookup.html
+[key_config]
+left = 100
+right = 97
+soft_drop = 115
+hard_drop = 119
+cw = 107
+ccw = 106
+hold = 32
+restart = 114

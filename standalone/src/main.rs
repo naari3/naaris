@@ -19,7 +19,7 @@ fn main() {
     window.set_max_fps(60);
 
     let mut app = App::new(Game::new());
-    music::start::<Music, Sound, _>(8, || {
+    music::start::<Music, Sound, _>(16, || {
         sound::init();
         music::set_volume(0.5);
         while let Some(event) = window.next() {

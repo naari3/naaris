@@ -1830,7 +1830,10 @@ dependencies = [
  "piston2d-opengl_graphics",
  "piston_window",
  "sdl2",
+ "serde",
+ "serde_derive",
  "tetris",
+ "toml",
 ]
 
 [[package]]
