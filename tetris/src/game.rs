@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{Board, FallingPiece, Input, PieceState};
+use crate::{Board, FallingPiece, Input, Piece, PieceState};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DasState {
@@ -37,6 +37,7 @@ pub struct Game {
 
 impl Display for Game {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "    {:?}", self.board.hold_piece)?;
         writeln!(f, "    {:?}", self.board.next_pieces)?;
         writeln!(f, "    0 1 2 3 4 5 6 7 8 9")?;
         writeln!(f, "    -------------------")?;
@@ -114,8 +115,8 @@ impl Game {
         self.handle_hold();
         self.handle_rotate();
         self.handle_hard_drop();
-        self.handle_shift();
         self.apply_gravity();
+        self.handle_shift();
         self.apply_line_clear();
 
         self.previous_input = self.input;
@@ -128,6 +129,7 @@ impl Game {
                 if self.lock_counter >= self.lock_delay {
                     self.board.set_piece(&current_piece).unwrap();
                     self.current_piece = None;
+                    self.are_counter = Some(self.are);
                     self.lock_counter = 0;
                     return;
                 }
@@ -176,7 +178,7 @@ impl Game {
     }
 
     fn handle_hold(&mut self) {
-        if !self.hold_used {
+        if !self.hold_used && self.input.hold {
             if let Some(current_piece) = self.current_piece.as_mut() {
                 let swapped = self
                     .board
@@ -265,6 +267,10 @@ impl Game {
 
     pub fn get_board(&self) -> Board {
         self.board.clone()
+    }
+
+    pub fn get_hold(&self) -> Option<Piece> {
+        self.board.hold_piece.clone()
     }
 
     pub fn set_input(&mut self, input: Input) {

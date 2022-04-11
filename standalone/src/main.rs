@@ -11,6 +11,8 @@ use piston_window::{
 };
 use tetris::{Cell, Game, Input};
 
+const ORANGE: [f32; 4] = [1.0, 0.75, 0.0, 1.0];
+
 pub struct App {
     game: Game,   // Game
     input: Input, // Input
@@ -25,8 +27,19 @@ impl App {
         //     .unwrap();
 
         // clear(TRANSPARENT, &mut board_buffer);
-        clear(GRAY, g2d);
-        self.render_board(c, g2d, 16, 16);
+        clear(WHITE, g2d);
+        self.render_hold(
+            c,
+            g2d,
+            (CELL_SIZE * 2.0) as usize,
+            (CELL_SIZE * 2.0) as usize,
+        );
+        self.render_board(
+            c,
+            g2d,
+            (CELL_SIZE * 1.0) as usize,
+            (CELL_SIZE * 4.0) as usize,
+        );
 
         // let texture =
         //     opengl_graphics::Texture::from_image(&*board_buffer, &TextureSettings::new());
@@ -40,6 +53,9 @@ impl App {
         offset_x: usize,
         offset_y: usize,
     ) {
+        let square = [0.0, 0.0, 10.0 * CELL_SIZE, 20.0 * CELL_SIZE];
+        let transform = c.transform.trans(offset_x as f64, offset_y as f64);
+        rectangle(GRAY, square, transform, g);
         let cell_offset_y = 20;
         for (y, cells_x) in self.game.get_board().cells.iter().enumerate() {
             if y < cell_offset_y {
@@ -48,7 +64,15 @@ impl App {
             for (x, cell) in cells_x.iter().enumerate() {
                 match cell {
                     Some(cell) => {
-                        App::render_cell(c, g, x, y - cell_offset_y, offset_x, offset_y, cell);
+                        App::render_cell(
+                            c,
+                            g,
+                            x as _,
+                            (y - cell_offset_y) as _,
+                            offset_x,
+                            offset_y,
+                            cell,
+                        );
                     }
                     None => {}
                 }
@@ -73,18 +97,32 @@ impl App {
         };
     }
 
+    fn render_hold<G: Graphics>(
+        &mut self,
+        c: Context,
+        g: &mut G,
+        offset_x: usize,
+        offset_y: usize,
+    ) {
+        if let Some(hold) = self.game.get_hold() {
+            let cell = hold.into();
+            for (rel_x, rel_y) in hold.get_cells().into_iter() {
+                App::render_cell(c, g, rel_x as _, -rel_y as _, offset_x, offset_y, &cell);
+            }
+        };
+    }
+
     fn render_cell<G: Graphics>(
         c: Context,
         g: &mut G,
-        x: usize,
-        y: usize,
+        x: i32,
+        y: i32,
         offset_x: usize,
         offset_y: usize,
         cell: &Cell,
     ) {
         use tetris::Cell::*;
 
-        const ORANGE: [f32; 4] = [1.0, 0.75, 0.0, 1.0];
         let square = rectangle::square(0.0, 0.0, CELL_SIZE);
         // let square = rectangle::square(x as f64 * CELL_SIZE, (y as f64) * CELL_SIZE, CELL_SIZE);
 

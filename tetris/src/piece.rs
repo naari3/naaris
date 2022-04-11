@@ -91,6 +91,16 @@ impl Rotation {
     }
 }
 
+const STANDS: [[(i16, i16); 4]; 7] = [
+    [(-1, 0), (0, 0), (1, 0), (2, 0)],  // I
+    [(0, 0), (1, 0), (0, 1), (1, 1)],   // O
+    [(-1, 0), (0, 0), (1, 0), (0, 1)],  // T
+    [(-1, 0), (0, 0), (1, 0), (1, 1)],  // L
+    [(-1, 0), (0, 0), (1, 0), (-1, 1)], // J
+    [(-1, 0), (0, 0), (0, 1), (1, 1)],  // S
+    [(-1, 1), (0, 1), (0, 0), (1, 0)],  // Z
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoPrimitive)]
 #[repr(u8)]
 pub enum Piece {
@@ -101,6 +111,12 @@ pub enum Piece {
     J,
     S,
     Z,
+}
+
+impl Piece {
+    pub fn get_cells(&self) -> Vec<(i16, i16)> {
+        STANDS[*self as usize].to_vec()
+    }
 }
 
 impl Distribution<Piece> for Standard {
@@ -140,16 +156,6 @@ impl Distribution<PieceState> for Standard {
     }
 }
 
-const STANDS: [[(i16, i16); 4]; 7] = [
-    [(-1, 0), (0, 0), (1, 0), (2, 0)],  // I
-    [(0, 0), (1, 0), (0, 1), (1, 1)],   // O
-    [(-1, 0), (0, 0), (1, 0), (0, 1)],  // T
-    [(-1, 0), (0, 0), (1, 0), (1, 1)],  // L
-    [(-1, 0), (0, 0), (1, 0), (-1, 1)], // J
-    [(-1, 0), (0, 0), (0, 1), (1, 1)],  // S
-    [(-1, 1), (0, 1), (0, 0), (1, 0)],  // Z
-];
-
 impl PieceState {
     pub fn from_piece(piece: Piece) -> Self {
         Self {
@@ -158,7 +164,7 @@ impl PieceState {
         }
     }
     pub fn get_cells(&self) -> Vec<(i16, i16)> {
-        let stand = STANDS[self.kind as usize].to_vec();
+        let stand = self.kind.get_cells();
 
         let rot_matrix = match self.rotation {
             Rotation::North => vec![(1, 0), (0, 1)],
