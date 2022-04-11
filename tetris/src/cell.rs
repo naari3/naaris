@@ -26,8 +26,8 @@ impl From<Piece> for Cell {
             I => Cyan,
             O => Yellow,
             T => Purple,
-            L => Blue,
-            J => Orange,
+            L => Orange,
+            J => Blue,
             S => Green,
             Z => Red,
         }

@@ -8,8 +8,8 @@ line_clear_delay = 6
 
 # http://sdl2referencejp.osdn.jp/SDLKeycodeLookup.html
 [key]
-left = 100
-right = 97
+left = 97
+right = 100
 soft_drop = 115
 hard_drop = 119
 cw = 107

@@ -24,6 +24,7 @@ pub struct Game {
     lock_counter: usize,
     input: Input,
     previous_input: Input,
+    rotate_used: bool,
     sound_queue: Vec<Sound>,
     das: usize,
     das_counter: usize,
@@ -101,6 +102,7 @@ impl Game {
             lock_counter: 0,
             input: Default::default(),
             previous_input: Default::default(),
+            rotate_used: false,
             sound_queue: vec![],
             das: 8,
             das_counter: 0,
@@ -135,6 +137,7 @@ impl Game {
             lock_counter: 0,
             input: Default::default(),
             previous_input: Default::default(),
+            rotate_used: false,
             sound_queue: vec![],
             das,
             das_counter: 0,
@@ -194,6 +197,7 @@ impl Game {
                 if self.lock_counter >= self.lock_delay {
                     self.board.set_piece(&current_piece).unwrap();
                     self.current_piece = None;
+                    self.rotate_used = false;
                     self.are_counter = Some(self.are);
                     self.lock_counter = 0;
                     self.sound_queue.push(Sound::Lock);
@@ -235,18 +239,21 @@ impl Game {
     }
 
     fn handle_rotate(&mut self) {
-        if !self.previous_input.cw && self.input.cw {
-            if let Some(current_piece) = self.current_piece.as_mut() {
+        if let Some(current_piece) = self.current_piece.as_mut() {
+            if self.input.cw && !self.rotate_used {
                 if current_piece.cw(&self.board) {
                     self.lock_counter = 0;
                 };
-            }
-        } else if !self.previous_input.ccw && self.input.ccw {
-            if let Some(current_piece) = self.current_piece.as_mut() {
+                self.rotate_used = true;
+            } else if self.input.ccw && !self.rotate_used {
                 if current_piece.ccw(&self.board) {
                     self.lock_counter = 0;
                 };
+                self.rotate_used = true;
             }
+        }
+        if self.previous_input.cw && !self.input.cw || self.previous_input.ccw && !self.input.ccw {
+            self.rotate_used = false;
         }
     }
 
@@ -264,6 +271,7 @@ impl Game {
                 };
                 self.sound_queue.push(sound);
                 *current_piece = new_piece;
+                self.rotate_used = false;
                 self.hold_used = true;
                 self.shift_down_counter = 0.0;
                 self.lock_counter = 0;
@@ -292,9 +300,9 @@ impl Game {
     }
 
     fn handle_shift(&mut self) {
-        if self.input.left {
-            if self.das_state != DasState::Left {
-                self.das_state = DasState::Left;
+        if self.input.right {
+            if self.das_state != DasState::Right {
+                self.das_state = DasState::Right;
                 self.das_counter = 0
             }
             if self.das_counter == 0 {
@@ -305,7 +313,7 @@ impl Game {
                     };
                 }
             }
-            if self.input.left == self.previous_input.left {
+            if self.input.right == self.previous_input.right {
                 self.das_counter += 1;
                 if self.das_counter >= self.das {
                     if let Some(current_piece) = self.current_piece.as_mut() {
@@ -315,9 +323,9 @@ impl Game {
                     }
                 }
             }
-        } else if self.input.right {
-            if self.das_state != DasState::Right {
-                self.das_state = DasState::Right;
+        } else if self.input.left {
+            if self.das_state != DasState::Left {
+                self.das_state = DasState::Left;
                 self.das_counter = 0
             }
             if self.das_counter == 0 {
@@ -328,7 +336,7 @@ impl Game {
                     };
                 }
             }
-            if self.input.right == self.previous_input.right {
+            if self.input.left == self.previous_input.left {
                 self.das_counter += 1;
                 if self.das_counter >= self.das {
                     if let Some(current_piece) = self.current_piece.as_mut() {
