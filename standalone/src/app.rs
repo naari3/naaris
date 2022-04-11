@@ -1,8 +1,4 @@
-use graphics::{
-    clear,
-    color::{BLACK, BLUE, CYAN, GRAY, GREEN, PURPLE, RED, WHITE, YELLOW},
-    rectangle,
-};
+use graphics::{clear, line_from_to, rectangle, types::Color};
 use piston_window::{
     Button, ButtonArgs, ButtonState, Context, G2d, Graphics, RenderArgs, Transformed,
 };
@@ -10,7 +6,31 @@ use tetris::{Cell, Game, Input};
 
 use crate::settings::Settings;
 
-const ORANGE: [f32; 4] = [1.0, 0.75, 0.0, 1.0];
+trait ToColor {
+    fn to_color(&self) -> Color;
+}
+
+impl ToColor for [u8; 4] {
+    fn to_color(&self) -> [f32; 4] {
+        [
+            self[0] as f32 / 255.0,
+            self[1] as f32 / 255.0,
+            self[2] as f32 / 255.0,
+            self[3] as f32 / 255.0,
+        ]
+    }
+}
+
+const BLACK: [u8; 4] = [0, 0, 0, 255];
+const WHITE: [u8; 4] = [255, 255, 255, 255];
+const RED: [u8; 4] = [215, 15, 55, 255];
+const ORANGE: [u8; 4] = [227, 91, 2, 255];
+const YELLOW: [u8; 4] = [227, 159, 2, 255];
+const GREEN: [u8; 4] = [89, 177, 1, 255];
+const CYAN: [u8; 4] = [15, 155, 215, 255];
+const BLUE: [u8; 4] = [33, 65, 198, 255];
+const PURPLE: [u8; 4] = [175, 41, 138, 255];
+const GRAY: [u8; 4] = [107, 107, 107, 255];
 
 pub struct App {
     game: Game,   // Game
@@ -35,7 +55,7 @@ impl App {
         //     .unwrap();
 
         // clear(TRANSPARENT, &mut board_buffer);
-        clear(WHITE, g2d);
+        clear(BLACK.to_color(), g2d);
         self.render_hold(
             c,
             g2d,
@@ -47,6 +67,13 @@ impl App {
             g2d,
             (CELL_SIZE * 6.0) as usize,
             (CELL_SIZE * 2.0) as usize,
+        );
+        self.render_board_outline(
+            c,
+            g2d,
+            2.0,
+            (CELL_SIZE * 1.0) as usize,
+            (CELL_SIZE * 4.0) as usize,
         );
         self.render_board(
             c,
@@ -60,6 +87,63 @@ impl App {
         // image(&texture, c.transform.trans(10.0, 0.0), g2d);
     }
 
+    fn render_board_outline<G: Graphics>(
+        &mut self,
+        c: Context,
+        g: &mut G,
+        radius: f64,
+        offset_x: usize,
+        offset_y: usize,
+    ) {
+        let color = GRAY.to_color();
+        let left = [
+            [0.0 + offset_x as f64, 0.0 + offset_y as f64 + radius],
+            [
+                0.0 + offset_x as f64,
+                20.0 * CELL_SIZE + offset_y as f64 - radius,
+            ],
+        ];
+        let right = [
+            [
+                10.0 * CELL_SIZE + offset_x as f64,
+                0.0 + offset_y as f64 + radius,
+            ],
+            [
+                10.0 * CELL_SIZE + offset_x as f64,
+                20.0 * CELL_SIZE + offset_y as f64 - radius,
+            ],
+        ];
+        let top = [
+            [0.0 + offset_x as f64 - radius, 0.0 + offset_y as f64],
+            [
+                10.0 * CELL_SIZE + offset_x as f64 + radius,
+                0.0 + offset_y as f64,
+            ],
+        ];
+        let bottom = [
+            [
+                0.0 + offset_x as f64 - radius,
+                20.0 * CELL_SIZE + offset_y as f64,
+            ],
+            [
+                10.0 * CELL_SIZE + offset_x as f64 + radius,
+                20.0 * CELL_SIZE + offset_y as f64,
+            ],
+        ];
+        // let left_top = [0.0 + offset_x as f64, 0.0 + offset_y as f64];
+        // let right_top = [10.0 * CELL_SIZE + offset_x as f64, 0.0 + offset_y as f64];
+        // let left_bottom = [0.0 + offset_x as f64, 20.0 * CELL_SIZE + offset_y as f64];
+        // let right_bottom = [
+        //     10.0 * CELL_SIZE + offset_x as f64,
+        //     20.0 * CELL_SIZE + offset_y as f64,
+        // ];
+
+        line_from_to(color, radius, left[0], left[1], c.transform, g);
+        line_from_to(color, radius, right[0], right[1], c.transform, g);
+        line_from_to(color, radius, top[0], top[1], c.transform, g);
+        line_from_to(color, radius, bottom[0], bottom[1], c.transform, g);
+    }
+
     fn render_board<G: Graphics>(
         &mut self,
         c: Context,
@@ -69,7 +153,7 @@ impl App {
     ) {
         let square = [0.0, 0.0, 10.0 * CELL_SIZE, 20.0 * CELL_SIZE];
         let transform = c.transform.trans(offset_x as f64, offset_y as f64);
-        rectangle(GRAY, square, transform, g);
+        rectangle(BLACK.to_color(), square, transform, g);
         let cell_offset_y = 20;
         for (y, cells_x) in self.game.get_board().cells.iter().enumerate() {
             if y < cell_offset_y {
@@ -199,7 +283,7 @@ impl App {
             Purple => PURPLE,
             Glay => GRAY,
         };
-        rectangle(color, square, transform, g);
+        rectangle(color.to_color(), square, transform, g);
     }
 
     pub fn update(&mut self) {

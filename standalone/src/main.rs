@@ -15,7 +15,7 @@ use tetris::{Game, Music, Sound};
 fn main() {
     let mut window: PistonWindow = WindowSettings::new(
         "Hello Piston!",
-        [CELL_SIZE * (10.0 + 6.0), CELL_SIZE * (20.0 + 4.0)],
+        [CELL_SIZE * (10.0 + 6.0), CELL_SIZE * (20.0 + 5.0)],
     )
     .exit_on_esc(true)
     .build()

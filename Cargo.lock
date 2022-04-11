@@ -1824,6 +1824,7 @@ version = "0.1.0"
 dependencies = [
  "graphics_buffer",
  "image",
+ "once_cell",
  "piston-music",
  "piston2d-gfx_graphics",
  "piston2d-graphics",
