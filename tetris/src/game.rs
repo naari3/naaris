@@ -213,8 +213,8 @@ impl Game {
                 if current_piece.shift(&self.board, 0, fall_size) {
                     // falling down successful
                 } else {
-                    for i in 0..fall_size {
-                        if current_piece.shift(&self.board, 0, fall_size - i) {
+                    for _ in 0..fall_size {
+                        if !current_piece.shift(&self.board, 0, 1) {
                             break;
                         };
                     }
@@ -265,6 +265,8 @@ impl Game {
                 self.sound_queue.push(sound);
                 *current_piece = new_piece;
                 self.hold_used = true;
+                self.shift_down_counter = 0.0;
+                self.lock_counter = 0;
                 self.sound_queue.push(Sound::Hold);
             }
         }
