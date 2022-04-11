@@ -8,8 +8,22 @@ edition = "2021"
 [dependencies]
 graphics_buffer = { git = "https://github.com/naari3/graphics_buffer", features = ["piston_window_texture"] }
 image = "0.24.1"
+piston-music = "0.26.0"
 piston2d-gfx_graphics = "0.76.0"
 piston2d-graphics = "0.42.0"
 piston2d-opengl_graphics = "0.81.0"
 piston_window = "0.123.0"
 tetris = { path = "../tetris" }
+
+[dependencies.sdl2]
+version = "0.34"
+default-features = false
+features = ["mixer","static-link","use-vcpkg"]
+
+[package.metadata.vcpkg]
+dependencies = ["sdl2", "sdl2-mixer"]
+git = "https://github.com/microsoft/vcpkg"
+rev = "f6af75acc923c833a5620943e3fc7d5e4930f0df"
+
+[package.metadata.vcpkg.target]
+x86_64-pc-windows-msvc = { triplet = "x64-windows-static-md" }

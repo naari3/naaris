@@ -26,3 +26,22 @@ pub struct Input {
     pub ccw: bool,
     pub hold: bool,
 }
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub enum Music {}
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub enum Sound {
+    Bottom,
+    Hold,
+    Lock,
+    Erase,
+    Fall,
+    PieceI,
+    PieceO,
+    PieceT,
+    PieceL,
+    PieceJ,
+    PieceS,
+    PieceZ,
+}

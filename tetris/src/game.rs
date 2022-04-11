@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{Board, FallingPiece, Input, Piece, PieceState};
+use crate::{Board, FallingPiece, Input, Piece, PieceState, Sound};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DasState {
@@ -24,6 +24,7 @@ pub struct Game {
     lock_counter: usize,
     input: Input,
     previous_input: Input,
+    sound_queue: Vec<Sound>,
     das: usize,
     das_counter: usize,
     das_state: DasState,
@@ -73,12 +74,14 @@ impl Game {
             board,
             current_piece: Some(current_piece),
             gravity: 1024.0 / 65536.0,
+            // gravity: 1.0 / 2.0,
             // gravity: 20.0,
             shift_down_counter: 0.0,
             lock_delay: 30,
             lock_counter: 0,
             input: Default::default(),
             previous_input: Default::default(),
+            sound_queue: vec![],
             das: 14,
             das_counter: 0,
             das_state: Default::default(),
@@ -96,16 +99,20 @@ impl Game {
             if let Some(line_clear_lock_timer) = self.line_clear_lock_timer.as_mut() {
                 *line_clear_lock_timer -= 1;
                 if *line_clear_lock_timer <= 0 {
+                    self.sound_queue.push(Sound::Fall);
                     self.line_clear_lock_timer = None;
                     self.board.line_shrink();
                 }
             } else {
                 if let Some(are_counter) = self.are_counter.as_mut() {
-                    println!("are_counter: {are_counter}");
                     *are_counter -= 1;
                     if *are_counter <= 0 {
                         let next_piece = PieceState::from_piece(self.board.pop_next());
                         self.current_piece = FallingPiece::from_piece_state(next_piece).into();
+
+                        let sound = self.get_next_sound();
+                        self.sound_queue.push(sound);
+
                         self.hold_used = false;
                         self.are_counter = None;
                     }
@@ -125,17 +132,26 @@ impl Game {
     fn apply_gravity(&mut self) {
         if let Some(mut current_piece) = self.current_piece.clone() {
             if current_piece.check_shift_collision(&self.board, 0, 1) {
+                if current_piece.piece_position.1 > current_piece.previous_lock_y {
+                    self.sound_queue.push(Sound::Bottom);
+                }
+                current_piece.previous_lock_y = current_piece.piece_position.1;
                 self.lock_counter += 1;
                 if self.lock_counter >= self.lock_delay {
                     self.board.set_piece(&current_piece).unwrap();
                     self.current_piece = None;
                     self.are_counter = Some(self.are);
                     self.lock_counter = 0;
+                    self.sound_queue.push(Sound::Lock);
                     return;
                 }
             }
 
-            self.shift_down_counter += self.gravity;
+            self.shift_down_counter += if self.input.soft_drop && self.gravity < 1.0 {
+                1.0
+            } else {
+                self.gravity
+            };
             if self.shift_down_counter >= 1.0 {
                 let fall_size = self.shift_down_counter as i32;
                 self.shift_down_counter = 0.0;
@@ -150,12 +166,15 @@ impl Game {
                     }
                 }
             }
+            // let sound = self.get_next_sound();
+            // self.sound_queue.push(sound);
             self.current_piece = Some(current_piece);
         }
     }
 
     fn apply_line_clear(&mut self) {
         if let Some(_lines) = self.board.line_clear() {
+            self.sound_queue.push(Sound::Erase);
             self.line_clear_lock_timer = Some(self.line_clear_lock);
             self.are_counter = Some(self.line_are);
         };
@@ -179,6 +198,7 @@ impl Game {
 
     fn handle_hold(&mut self) {
         if !self.hold_used && self.input.hold {
+            let sound = self.get_next_sound();
             if let Some(current_piece) = self.current_piece.as_mut() {
                 let swapped = self
                     .board
@@ -188,8 +208,10 @@ impl Game {
                 } else {
                     FallingPiece::from_piece_state(PieceState::from_piece(self.board.pop_next()))
                 };
+                self.sound_queue.push(sound);
                 *current_piece = new_piece;
                 self.hold_used = true;
+                self.sound_queue.push(Sound::Hold);
             }
         }
     }
@@ -197,6 +219,8 @@ impl Game {
     fn handle_hard_drop(&mut self) {
         if !self.previous_input.hard_drop && self.input.hard_drop {
             if let Some(current_piece) = self.current_piece.as_mut() {
+                self.sound_queue.push(Sound::Bottom);
+
                 for i in 0..20 {
                     if current_piece.check_shift_collision(&self.board, 0, i) {
                         current_piece.shift(&self.board, 0, i - 1);
@@ -271,6 +295,30 @@ impl Game {
 
     pub fn get_hold(&self) -> Option<Piece> {
         self.board.hold_piece.clone()
+    }
+
+    pub fn get_next(&self) -> Piece {
+        self.board.next_pieces[0]
+    }
+
+    pub fn get_next_next(&self) -> Piece {
+        self.board.next_pieces[1]
+    }
+
+    pub fn get_sound_queue(&mut self) -> &mut Vec<Sound> {
+        self.sound_queue.as_mut()
+    }
+
+    pub fn get_next_sound(&self) -> Sound {
+        match self.get_next() {
+            Piece::I => Sound::PieceI,
+            Piece::O => Sound::PieceO,
+            Piece::T => Sound::PieceT,
+            Piece::L => Sound::PieceL,
+            Piece::J => Sound::PieceJ,
+            Piece::S => Sound::PieceS,
+            Piece::Z => Sound::PieceZ,
+        }
     }
 
     pub fn set_input(&mut self, input: Input) {

@@ -7,6 +7,7 @@ use crate::Board;
 pub struct FallingPiece {
     pub piece_state: PieceState,
     pub piece_position: (usize, usize),
+    pub previous_lock_y: usize,
 }
 
 impl FallingPiece {
@@ -15,6 +16,7 @@ impl FallingPiece {
         Self {
             piece_state,
             piece_position,
+            previous_lock_y: 0,
         }
     }
     pub fn shift(&mut self, board: &Board, x: i32, y: i32) -> bool {
@@ -42,22 +44,41 @@ impl FallingPiece {
         }
     }
     pub fn cw(&mut self, board: &Board) -> bool {
+        let initial_offsets = self.piece_state.kicks();
         self.piece_state.cw();
-        println!("{:?}", self.piece_state);
-        if self.check_shift_collision(board, 0, 0) {
-            self.piece_state.ccw();
-            return false;
-        };
-        true
+        let target_offsets = self.piece_state.kicks();
+        let kicks = initial_offsets
+            .iter()
+            .zip(target_offsets.iter())
+            .map(|(&(x1, y1), &(x2, y2))| (x1 - x2, y1 - y2));
+
+        for (dx, dy) in kicks {
+            if !self.check_shift_collision(board, dx, dy) {
+                self.shift(board, dx, dy);
+                return true;
+            };
+        }
+        self.piece_state.ccw();
+
+        false
     }
     pub fn ccw(&mut self, board: &Board) -> bool {
+        let initial_offsets = self.piece_state.kicks();
         self.piece_state.ccw();
-        println!("{:?}", self.piece_state);
-        if self.check_shift_collision(board, 0, 0) {
-            self.piece_state.cw();
-            return false;
-        };
-        true
+        let target_offsets = self.piece_state.kicks();
+        let kicks = initial_offsets
+            .iter()
+            .zip(target_offsets.iter())
+            .map(|(&(x1, y1), &(x2, y2))| (x1 - x2, y1 - y2));
+
+        for (dx, dy) in kicks {
+            if !self.check_shift_collision(board, dx, dy) {
+                self.shift(board, dx, dy);
+                return true;
+            };
+        }
+        self.piece_state.cw();
+        false
     }
 }
 
@@ -201,5 +222,41 @@ impl PieceState {
 
     pub fn ccw(&mut self) {
         self.rotation.ccw()
+    }
+
+    pub fn kicks(&self) -> [(i32, i32); 5] {
+        use Piece::*;
+        use Rotation::*;
+
+        match (self.kind, self.rotation) {
+            // (O, North) => [(0, 0); 5],
+            // (O, East) => [(0, -1); 5],
+            // (O, South) => [(-1, -1); 5],
+            // (O, West) => [(-1, 0); 5],
+
+            // (I, North) => [(0, 0), (-1, 0), (2, 0), (-1, 0), (2, 0)],
+            // (I, East) => [(-1, 0), (0, 0), (0, 0), (0, 1), (0, -2)],
+            // (I, South) => [(-1, 1), (1, 1), (-2, 1), (1, 0), (-2, 0)],
+            // (I, West) => [(0, 1), (0, 1), (0, 1), (0, -1), (0, 2)],
+
+            // (_, North) => [(0, 0); 5],
+            // (_, East) => [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+            // (_, South) => [(0, 0); 5],
+            // (_, West) => [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
+            (O, North) => [(0, 0); 5],
+            (O, East) => [(0, 1); 5],
+            (O, South) => [(-1, 1); 5],
+            (O, West) => [(-1, 0); 5],
+
+            (I, North) => [(0, 0), (-1, 0), (2, 0), (-1, 0), (2, 0)],
+            (I, East) => [(-1, 0), (0, 0), (0, 0), (0, 1), (0, 2)],
+            (I, South) => [(-1, -1), (1, -1), (-2, -1), (1, 0), (-2, 0)],
+            (I, West) => [(0, -1), (0, -1), (0, -1), (0, 1), (0, -2)],
+
+            (_, North) => [(0, 0); 5],
+            (_, East) => [(0, 0), (1, 0), (1, 1), (0, -2), (1, -2)],
+            (_, South) => [(0, 0); 5],
+            (_, West) => [(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
+        }
     }
 }
