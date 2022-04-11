@@ -59,7 +59,7 @@ impl App {
         self.render_hold(
             c,
             g2d,
-            (CELL_SIZE * 2.0) as usize,
+            (CELL_SIZE * 1.0) as usize,
             (CELL_SIZE * 2.0) as usize,
         );
         self.render_next(
@@ -166,6 +166,20 @@ impl App {
                 c,
                 g,
                 (rel_x + 4) as _,
+                -rel_y as _,
+                offset_x,
+                offset_y,
+                &cell,
+            );
+        }
+
+        let next_next_next = self.game.get_next_next_next();
+        let cell = next_next_next.into();
+        for (rel_x, rel_y) in next_next_next.get_cells().into_iter() {
+            App::render_cell(
+                c,
+                g,
+                (rel_x + 8) as _,
                 -rel_y as _,
                 offset_x,
                 offset_y,

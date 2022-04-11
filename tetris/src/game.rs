@@ -325,6 +325,10 @@ impl Game {
         self.board.next_pieces[1]
     }
 
+    pub fn get_next_next_next(&self) -> Piece {
+        self.board.next_pieces[2]
+    }
+
     pub fn get_sound_queue(&mut self) -> &mut Vec<Sound> {
         self.sound_queue.as_mut()
     }
