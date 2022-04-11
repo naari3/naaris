@@ -32,6 +32,7 @@ pub struct Game {
     are_counter: Option<usize>,
     line_clear_lock: usize,
     line_clear_lock_timer: Option<usize>,
+    hold_used: bool,
 }
 
 impl Display for Game {
@@ -85,6 +86,7 @@ impl Game {
             are_counter: None,
             line_clear_lock: 40,
             line_clear_lock_timer: None,
+            hold_used: false,
         }
     }
 
@@ -103,11 +105,13 @@ impl Game {
                     if *are_counter <= 0 {
                         let next_piece = PieceState::from_piece(self.board.pop_next());
                         self.current_piece = FallingPiece::from_piece_state(next_piece).into();
+                        self.hold_used = false;
                         self.are_counter = None;
                     }
                 }
             }
         }
+        self.handle_hold();
         self.handle_rotate();
         self.handle_hard_drop();
         self.handle_shift();
@@ -167,6 +171,23 @@ impl Game {
                 if current_piece.ccw(&self.board) {
                     self.lock_counter = 0;
                 };
+            }
+        }
+    }
+
+    fn handle_hold(&mut self) {
+        if !self.hold_used {
+            if let Some(current_piece) = self.current_piece.as_mut() {
+                let swapped = self
+                    .board
+                    .swap_hold_piece(current_piece.piece_state.get_kind());
+                let new_piece = if let Some(swapped) = swapped {
+                    FallingPiece::from_piece_state(PieceState::from_piece(swapped))
+                } else {
+                    FallingPiece::from_piece_state(PieceState::from_piece(self.board.pop_next()))
+                };
+                *current_piece = new_piece;
+                self.hold_used = true;
             }
         }
     }

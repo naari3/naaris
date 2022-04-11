@@ -10,6 +10,7 @@ pub struct Board {
     pub cells: ArrayVec<ArrayVec<Option<Cell>, 10>, 40>,
     pub next_pieces: Vec<Piece>,
     bag: Vec<Piece>,
+    pub hold_piece: Option<Piece>,
 }
 
 impl Default for Board {
@@ -35,6 +36,7 @@ impl Default for Board {
             cells,
             next_pieces,
             bag,
+            hold_piece: None,
         }
     }
 }
@@ -145,5 +147,11 @@ impl Board {
         for _ in 0..lines.len() {
             self.cells.insert(0, ArrayVec::from([None; 10]));
         }
+    }
+
+    pub fn swap_hold_piece(&mut self, piece: Piece) -> Option<Piece> {
+        let original = self.hold_piece;
+        self.hold_piece = Some(piece);
+        original
     }
 }
