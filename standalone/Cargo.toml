@@ -6,6 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+graphics_buffer = { git = "https://github.com/naari3/graphics_buffer", features = ["piston_window_texture"] }
+image = "0.24.1"
+piston2d-gfx_graphics = "0.76.0"
 piston2d-graphics = "0.42.0"
 piston2d-opengl_graphics = "0.81.0"
 piston_window = "0.123.0"
