@@ -1,9 +1,8 @@
 use graphics::{clear, line_from_to, math::Matrix2d, rectangle, types::Color};
-use graphics_buffer::RenderBuffer;
 use piston_window::{
     Button, ButtonArgs, ButtonState, Context, G2d, Graphics, RenderArgs, Transformed,
 };
-use tetris::{Cell, Game, Input, Piece};
+use tetris::{Board, Cell, FallingPiece, Game, Input, Piece};
 
 use crate::settings::Settings;
 
@@ -37,7 +36,6 @@ pub struct App {
     game: Game,   // Game
     input: Input, // Input
     settings: Settings,
-    board_buffer: RenderBuffer,
 }
 pub const CELL_SIZE: f64 = 16.0;
 
@@ -47,100 +45,56 @@ impl App {
             game,
             input: Default::default(),
             settings,
-            board_buffer: RenderBuffer::new((10.0 * CELL_SIZE) as _, (20.0 * CELL_SIZE) as _),
         }
     }
 
     pub fn render(&mut self, _args: &RenderArgs, c: Context, g2d: &mut G2d) {
-        // let mut board_buffer = RenderBuffer::new((CELL_SIZE * 10.0) as _, (CELL_SIZE * 20.0) as _);
-        // let texture = board_buffer
-        //     .to_g2d_texture(&mut self.texture_context, &TextureSettings::new())
-        //     .unwrap();
-
-        // clear(TRANSPARENT, &mut board_buffer);
         clear(BLACK.to_color(), g2d);
 
-        self.render_hold(
-            c.transform,
+        App::render_hold(
+            c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 2.0),
             g2d,
-            (CELL_SIZE * 1.0) as usize,
-            (CELL_SIZE * 2.0) as usize,
+            self.game.get_hold(),
         );
-        self.render_next(
-            c.transform,
+        App::render_next(
+            c.transform.trans(CELL_SIZE * 6.0, CELL_SIZE * 2.0),
             g2d,
-            (CELL_SIZE * 6.0) as usize,
-            (CELL_SIZE * 2.0) as usize,
+            self.game.get_next(),
+            self.game.get_next_next(),
+            self.game.get_next_next_next(),
         );
-        self.render_board_outline(
-            c.transform,
+
+        App::render_board_outline(
+            c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0),
             g2d,
             2.0,
-            (CELL_SIZE * 1.0) as usize,
-            (CELL_SIZE * 4.0) as usize,
         );
-        self.render_board(
-            c.transform,
+        App::render_board(
+            c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0),
             g2d,
-            (CELL_SIZE * 1.0) as usize,
-            (CELL_SIZE * 4.0) as usize,
+            &self.game.get_board(),
+            &self.game.current_piece,
         );
-
-        // let texture =
-        //     opengl_graphics::Texture::from_image(&*board_buffer, &TextureSettings::new());
-        // image(&texture, c.transform.trans(10.0, 0.0), g2d);
     }
 
-    fn render_board_outline<G: Graphics>(
-        &mut self,
-        transform: Matrix2d,
-        g: &mut G,
-        radius: f64,
-        offset_x: usize,
-        offset_y: usize,
-    ) {
+    fn render_board_outline<G: Graphics>(transform: Matrix2d, g: &mut G, radius: f64) {
         let color = GRAY.to_color();
-        let left = [
-            [0.0 + offset_x as f64, 0.0 + offset_y as f64 + radius],
-            [
-                0.0 + offset_x as f64,
-                20.0 * CELL_SIZE + offset_y as f64 - radius,
-            ],
-        ];
+
+        // let left_top = [0.0, 0.0];
+        // let right_top = [10.0 * CELL_SIZE, 0.0];
+        // let left_bottom = [0.0, 20.0 * CELL_SIZE];
+        // let right_bottom = [10.0 * CELL_SIZE, 20.0 * CELL_SIZE];
+
+        let left = [[0.0, 0.0 + radius], [0.0, 20.0 * CELL_SIZE - radius]];
         let right = [
-            [
-                10.0 * CELL_SIZE + offset_x as f64,
-                0.0 + offset_y as f64 + radius,
-            ],
-            [
-                10.0 * CELL_SIZE + offset_x as f64,
-                20.0 * CELL_SIZE + offset_y as f64 - radius,
-            ],
+            [10.0 * CELL_SIZE, 0.0 + radius],
+            [10.0 * CELL_SIZE, 20.0 * CELL_SIZE - radius],
         ];
-        let top = [
-            [0.0 + offset_x as f64 - radius, 0.0 + offset_y as f64],
-            [
-                10.0 * CELL_SIZE + offset_x as f64 + radius,
-                0.0 + offset_y as f64,
-            ],
-        ];
+        let top = [[0.0 - radius, 0.0], [10.0 * CELL_SIZE + radius, 0.0]];
         let bottom = [
-            [
-                0.0 + offset_x as f64 - radius,
-                20.0 * CELL_SIZE + offset_y as f64,
-            ],
-            [
-                10.0 * CELL_SIZE + offset_x as f64 + radius,
-                20.0 * CELL_SIZE + offset_y as f64,
-            ],
+            [0.0 - radius, 20.0 * CELL_SIZE],
+            [10.0 * CELL_SIZE + radius, 20.0 * CELL_SIZE],
         ];
-        // let left_top = [0.0 + offset_x as f64, 0.0 + offset_y as f64];
-        // let right_top = [10.0 * CELL_SIZE + offset_x as f64, 0.0 + offset_y as f64];
-        // let left_bottom = [0.0 + offset_x as f64, 20.0 * CELL_SIZE + offset_y as f64];
-        // let right_bottom = [
-        //     10.0 * CELL_SIZE + offset_x as f64,
-        //     20.0 * CELL_SIZE + offset_y as f64,
-        // ];
 
         line_from_to(color, radius, left[0], left[1], transform, g);
         line_from_to(color, radius, right[0], right[1], transform, g);
@@ -149,39 +103,30 @@ impl App {
     }
 
     fn render_board<G: Graphics>(
-        &mut self,
         transform: Matrix2d,
         g: &mut G,
-        offset_x: usize,
-        offset_y: usize,
+        board: &Board,
+        current_piece: &Option<FallingPiece>,
     ) {
         let square = [0.0, 0.0, 10.0 * CELL_SIZE, 20.0 * CELL_SIZE];
-        let background_transform = transform.trans(offset_x as f64, offset_y as f64);
+        let background_transform = transform;
         rectangle(BLACK.to_color(), square, background_transform, g);
         let cell_offset_y = 20;
-        for (y, cells_x) in self.game.get_board().cells.iter().enumerate() {
+        for (y, cells_x) in board.cells.iter().enumerate() {
             if y < cell_offset_y {
                 continue;
             };
             for (x, cell) in cells_x.iter().enumerate() {
                 match cell {
                     Some(cell) => {
-                        App::render_cell(
-                            transform,
-                            g,
-                            x as _,
-                            (y - cell_offset_y) as _,
-                            offset_x,
-                            offset_y,
-                            cell,
-                        );
+                        App::render_cell(transform, g, x as _, (y - cell_offset_y) as _, cell);
                     }
                     None => {}
                 }
             }
         }
 
-        if let Some(current_piece) = self.game.current_piece {
+        if let Some(current_piece) = current_piece {
             let pos = current_piece.piece_position;
             let cell = current_piece.piece_state.get_kind().into();
 
@@ -191,96 +136,47 @@ impl App {
                     g,
                     (rel_x + pos.0 as i16) as _,
                     ((-rel_y - cell_offset_y as i16) + pos.1 as i16) as _,
-                    offset_x,
-                    offset_y,
                     &cell,
                 );
             }
         };
     }
 
-    fn render_hold<G: Graphics>(
-        &mut self,
-        transform: Matrix2d,
-        g: &mut G,
-        offset_x: usize,
-        offset_y: usize,
-    ) {
-        if let Some(hold) = self.game.get_hold() {
-            self.render_piece(transform, g, hold, offset_x, offset_y);
+    fn render_hold<G: Graphics>(transform: Matrix2d, g: &mut G, hold: Option<Piece>) {
+        if let Some(hold) = hold {
+            App::render_piece(transform, g, hold);
         };
     }
 
-    fn render_piece<G: Graphics>(
-        &mut self,
-        transform: Matrix2d,
-        g: &mut G,
-        piece: Piece,
-        offset_x: usize,
-        offset_y: usize,
-    ) {
+    fn render_piece<G: Graphics>(transform: Matrix2d, g: &mut G, piece: Piece) {
         let cell = piece.into();
         for (rel_x, rel_y) in piece.get_cells().into_iter() {
-            App::render_cell(
-                transform,
-                g,
-                rel_x as _,
-                -rel_y as _,
-                offset_x,
-                offset_y,
-                &cell,
-            );
+            App::render_cell(transform, g, rel_x as _, -rel_y as _, &cell);
         }
     }
 
     fn render_next<G: Graphics>(
-        &mut self,
         transform: Matrix2d,
         g: &mut G,
-        offset_x: usize,
-        offset_y: usize,
+        next: Piece,
+        next_next: Piece,
+        next_next_next: Piece,
     ) {
-        let next = self.game.get_next();
-        self.render_piece(transform, g, next, offset_x, offset_y);
+        App::render_piece(transform, g, next);
 
-        let next_next = self.game.get_next_next();
-        self.render_piece(
-            transform,
-            g,
-            next_next,
-            offset_x + CELL_SIZE as usize * 4,
-            offset_y,
-        );
+        App::render_piece(transform.trans(CELL_SIZE * 4.0, 0.0), g, next_next);
 
-        let next_next_next = self.game.get_next_next_next();
-        self.render_piece(
-            transform,
-            g,
-            next_next_next,
-            offset_x + CELL_SIZE as usize * 8,
-            offset_y,
-        );
+        App::render_piece(transform.trans(CELL_SIZE * 8.0, 0.0), g, next_next_next);
     }
 
-    fn render_cell<G: Graphics>(
-        transform: Matrix2d,
-        g: &mut G,
-        x: i32,
-        y: i32,
-        offset_x: usize,
-        offset_y: usize,
-        cell: &Cell,
-    ) {
+    fn render_cell<G: Graphics>(transform: Matrix2d, g: &mut G, x: i32, y: i32, cell: &Cell) {
         use tetris::Cell::*;
 
         let square = rectangle::square(0.0, 0.0, CELL_SIZE);
         // let square = rectangle::square(x as f64 * CELL_SIZE, (y as f64) * CELL_SIZE, CELL_SIZE);
 
         let transform = transform
-            .trans(
-                (x as f64 * CELL_SIZE) + offset_x as f64,
-                (y as f64 * CELL_SIZE) + offset_y as f64,
-            )
+            .trans((x as f64 * CELL_SIZE) + 0.0, (y as f64 * CELL_SIZE) + 0.0)
             .scale(0.75, 0.75);
         // let transform = IDENTITY;
         let color = match cell {

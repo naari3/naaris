@@ -6,7 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-graphics_buffer = { git = "https://github.com/naari3/graphics_buffer", features = ["piston_window_texture"] }
 image = "0.24.1"
 piston-music = "0.26.0"
 piston2d-gfx_graphics = "0.76.0"
@@ -17,7 +16,7 @@ tetris = { path = "../tetris" }
 toml = "0.5.8"
 serde_derive = "1.0.136"
 serde = "1.0.136"
-once_cell = "1.10.0"
+fps_counter = "2.0.0"
 
 [dependencies.sdl2]
 version = "0.34"

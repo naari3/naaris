@@ -8,6 +8,7 @@ use std::fs::read_to_string;
 
 use app::{App, CELL_SIZE};
 
+use fps_counter::FPSCounter;
 use piston_window::{ButtonEvent, EventLoop, PistonWindow, RenderEvent, WindowSettings};
 use settings::Settings;
 use tetris::{Game, Music, Sound};
@@ -34,6 +35,7 @@ fn main() {
         settings.game.line_clear_delay,
     );
     let mut app = App::new(game, settings);
+    let mut a = FPSCounter::default();
     music::start::<Music, Sound, _>(16, || {
         sound::init();
         music::set_volume(0.5);
@@ -43,6 +45,7 @@ fn main() {
                     app.update();
                     app.render(&args, c, g2d);
                 });
+                println!("{:?}", a.tick());
             }
             // if let Some(_args) = event.update_args() {}
 
