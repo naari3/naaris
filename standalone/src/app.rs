@@ -1,5 +1,7 @@
 use fps_counter::FPSCounter;
-use graphics::{clear, line_from_to, math::Matrix2d, rectangle, types::Color, Text};
+use graphics::{
+    clear, line_from_to, math::Matrix2d, rectangle, rectangle::square, types::Color, Text,
+};
 use piston_window::{
     Button, ButtonArgs, ButtonState, Context, G2d, GfxDevice, Glyphs, Graphics, RenderArgs,
     Transformed,
@@ -20,6 +22,63 @@ impl ToColor for [u8; 4] {
             self[2] as f32 / 255.0,
             self[3] as f32 / 255.0,
         ]
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum PieceLine {
+    Top,
+    Bottom,
+    Left,
+    Right,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct PieceLineInfo(usize, usize, PieceLine);
+
+impl PieceLineInfo {
+    fn to_from_to(&self) -> ([f64; 2], [f64; 2]) {
+        let &PieceLineInfo(x, y, line) = self;
+        let x = x as f64;
+        let y = y as f64;
+        match line {
+            PieceLine::Top => (
+                [CELL_SIZE * x, CELL_SIZE * y - 1.0],
+                [CELL_SIZE * (x + 1.0), CELL_SIZE * y - 1.0],
+            ),
+            PieceLine::Bottom => (
+                [CELL_SIZE * x, CELL_SIZE * (y + 1.0)],
+                [CELL_SIZE * (x + 1.0), CELL_SIZE * (y + 1.0)],
+            ),
+            PieceLine::Left => (
+                [CELL_SIZE * x, CELL_SIZE * y],
+                [CELL_SIZE * x, CELL_SIZE * (y + 1.0)],
+            ),
+            PieceLine::Right => (
+                [CELL_SIZE * (x + 1.0) + 1.0, CELL_SIZE * y],
+                [CELL_SIZE * (x + 1.0) + 1.0, CELL_SIZE * (y + 1.0)],
+            ),
+            PieceLine::TopLeft => (
+                [CELL_SIZE * x - 1.0, CELL_SIZE * y - 1.0],
+                [CELL_SIZE * x - 1.0, CELL_SIZE * y - 1.0],
+            ),
+            PieceLine::TopRight => (
+                [CELL_SIZE * (x + 1.0), CELL_SIZE * y - 1.0],
+                [CELL_SIZE * (x + 1.0), CELL_SIZE * y - 1.0],
+            ),
+            PieceLine::BottomLeft => (
+                [CELL_SIZE * x - 1.0, CELL_SIZE * (y + 1.0)],
+                [CELL_SIZE * x - 1.0, CELL_SIZE * (y + 1.0)],
+            ),
+            PieceLine::BottomRight => (
+                [CELL_SIZE * (x + 1.0), CELL_SIZE * (y + 1.0)],
+                [CELL_SIZE * (x + 1.0), CELL_SIZE * (y + 1.0)],
+            ),
+        }
     }
 }
 
@@ -79,15 +138,20 @@ impl App {
             self.game.get_next_next_next(),
         );
 
-        App::render_board_outline(
-            c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0),
-            g2d,
-            2.0,
-        );
         App::render_board(
             c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0),
             g2d,
             &self.game.get_board(),
+        );
+        App::render_board_pieces_outline(
+            c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0),
+            g2d,
+            &self.game.get_board(),
+        );
+        App::render_board_outline(
+            c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0),
+            g2d,
+            1.0,
         );
         App::render_current_piece(
             c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0),
@@ -165,6 +229,81 @@ impl App {
         }
     }
 
+    fn render_board_pieces_outline<G: Graphics>(transform: Matrix2d, g: &mut G, board: &Board) {
+        let cell_offset_y = 20;
+        let mut line_infos = vec![];
+        for x in 0..10 {
+            for y in (0 + cell_offset_y)..(20 + cell_offset_y) {
+                if let None = board.cells[y][x] {
+                    if x > 0 {
+                        if let Some(_top_left) = board.cells[y - 1][x - 1] {
+                            line_infos.push(PieceLineInfo(x, y - cell_offset_y, PieceLine::TopLeft))
+                        }
+                    }
+                    if x < 9 {
+                        if let Some(_top_right) = board.cells[y - 1][x + 1] {
+                            line_infos.push(PieceLineInfo(
+                                x,
+                                y - cell_offset_y,
+                                PieceLine::TopRight,
+                            ))
+                        }
+                    }
+                    if let Some(_top) = board.cells[y - 1][x] {
+                        line_infos.push(PieceLineInfo(x, y - cell_offset_y, PieceLine::Top))
+                    }
+                    if y < 20 + (cell_offset_y - 1) {
+                        if let Some(_bottom) = board.cells[y + 1][x] {
+                            line_infos.push(PieceLineInfo(x, y - cell_offset_y, PieceLine::Bottom))
+                        }
+                        if x > 0 {
+                            if let Some(_bottom_left) = board.cells[y + 1][x - 1] {
+                                line_infos.push(PieceLineInfo(
+                                    x,
+                                    y - cell_offset_y,
+                                    PieceLine::BottomLeft,
+                                ))
+                            }
+                        }
+                        if x < 9 {
+                            if let Some(_bottom_right) = board.cells[y + 1][x + 1] {
+                                line_infos.push(PieceLineInfo(
+                                    x,
+                                    y - cell_offset_y,
+                                    PieceLine::BottomRight,
+                                ))
+                            }
+                        }
+                    }
+                    if x > 0 {
+                        if let Some(_left) = board.cells[y][x - 1] {
+                            line_infos.push(PieceLineInfo(x, y - cell_offset_y, PieceLine::Left))
+                        }
+                    }
+                    if x < 9 {
+                        if let Some(_right) = board.cells[y][x + 1] {
+                            line_infos.push(PieceLineInfo(x, y - cell_offset_y, PieceLine::Right))
+                        }
+                    }
+                }
+            }
+        }
+
+        for line_info in line_infos.iter() {
+            let (from, to) = line_info.to_from_to();
+            use PieceLine::*;
+            match line_info.2 {
+                Top | Bottom | Left | Right => {
+                    line_from_to(WHITE.to_color(), 0.5, from, to, transform, g)
+                }
+                TopLeft | TopRight | BottomLeft | BottomRight => {
+                    let p = square(0.0, 0.0, 1.0);
+                    rectangle(WHITE.to_color(), p, transform.trans(from[0], from[1]), g);
+                }
+            }
+        }
+    }
+
     fn render_current_piece<G: Graphics>(
         transform: Matrix2d,
         g: &mut G,
@@ -217,12 +356,10 @@ impl App {
     fn render_cell<G: Graphics>(transform: Matrix2d, g: &mut G, x: i32, y: i32, cell: &Cell) {
         use tetris::Cell::*;
 
-        let square = rectangle::square(0.0, 0.0, CELL_SIZE);
+        let square = rectangle::square(0.0, 0.0, CELL_SIZE - 1.0);
         // let square = rectangle::square(x as f64 * CELL_SIZE, (y as f64) * CELL_SIZE, CELL_SIZE);
 
-        let transform = transform
-            .trans((x as f64 * CELL_SIZE) + 0.0, (y as f64 * CELL_SIZE) + 0.0)
-            .scale(0.9, 0.9);
+        let transform = transform.trans(x as f64 * CELL_SIZE, y as f64 * CELL_SIZE);
         // let transform = IDENTITY;
         let color = match cell {
             Black => BLACK,
