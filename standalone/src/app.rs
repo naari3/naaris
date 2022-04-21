@@ -107,6 +107,16 @@ impl App {
                 g2d,
             )
             .unwrap();
+
+        Text::new_color(WHITE.to_color(), 8)
+            .draw(
+                "next",
+                &mut self.glyphs,
+                &c.draw_state,
+                c.transform.trans(16.0, 20.0),
+                g2d,
+            )
+            .unwrap();
         self.glyphs.factory.encoder.flush(d);
     }
 

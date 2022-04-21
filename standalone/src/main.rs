@@ -39,6 +39,7 @@ fn main() {
     let font_path = "./assets/PixeloidSans.ttf";
     let glyphs = window.load_font(font_path).unwrap();
     let mut app = App::new(game, settings, glyphs);
+
     music::start::<Music, Sound, _>(16, || {
         sound::init();
         music::set_volume(0.5);
