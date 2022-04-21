@@ -1,6 +1,8 @@
-use graphics::{clear, line_from_to, math::Matrix2d, rectangle, types::Color};
+use fps_counter::FPSCounter;
+use graphics::{clear, line_from_to, math::Matrix2d, rectangle, types::Color, Text};
 use piston_window::{
-    Button, ButtonArgs, ButtonState, Context, G2d, Graphics, RenderArgs, Transformed,
+    Button, ButtonArgs, ButtonState, Context, G2d, GfxDevice, Glyphs, Graphics, RenderArgs,
+    Transformed,
 };
 use tetris::{Board, Cell, FallingPiece, Game, Input, Piece};
 
@@ -33,6 +35,8 @@ const PURPLE: [u8; 4] = [175, 41, 138, 255];
 const GRAY: [u8; 4] = [107, 107, 107, 255];
 
 pub struct App {
+    fps: FPSCounter,
+    glyphs: Glyphs,
     game: Game,   // Game
     input: Input, // Input
     settings: Settings,
@@ -40,20 +44,22 @@ pub struct App {
 pub const CELL_SIZE: f64 = 16.0;
 
 impl App {
-    pub fn new(game: Game, settings: Settings) -> Self {
+    pub fn new(game: Game, settings: Settings, glyphs: Glyphs) -> Self {
         Self {
+            fps: FPSCounter::default(),
+            glyphs,
             game,
             input: Default::default(),
             settings,
         }
     }
 
-    pub fn render(&mut self, _args: &RenderArgs, c: Context, g2d: &mut G2d) {
+    pub fn render(&mut self, _args: &RenderArgs, c: Context, g2d: &mut G2d, d: &mut GfxDevice) {
         clear(BLACK.to_color(), g2d);
 
         App::render_hold(
             c.transform
-                .trans(CELL_SIZE * 1.5, CELL_SIZE * 2.0)
+                .trans(CELL_SIZE * 1.5, CELL_SIZE * 2.5)
                 .scale(0.5, 0.5),
             g2d,
             self.game.get_hold(),
@@ -82,8 +88,26 @@ impl App {
             c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0),
             g2d,
             &self.game.get_board(),
+        );
+        App::render_current_piece(
+            c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0),
+            g2d,
             &self.game.current_piece,
         );
+
+        let fps = self.fps.tick();
+        let fps_text = format!("{fps} fps");
+
+        Text::new_color(WHITE.to_color(), 8)
+            .draw(
+                &fps_text,
+                &mut self.glyphs,
+                &c.draw_state,
+                c.transform.trans(224.0, 11.0),
+                g2d,
+            )
+            .unwrap();
+        self.glyphs.factory.encoder.flush(d);
     }
 
     fn render_board_outline<G: Graphics>(transform: Matrix2d, g: &mut G, radius: f64) {
@@ -111,12 +135,7 @@ impl App {
         line_from_to(color, radius, bottom[0], bottom[1], transform, g);
     }
 
-    fn render_board<G: Graphics>(
-        transform: Matrix2d,
-        g: &mut G,
-        board: &Board,
-        current_piece: &Option<FallingPiece>,
-    ) {
+    fn render_board<G: Graphics>(transform: Matrix2d, g: &mut G, board: &Board) {
         let square = [0.0, 0.0, 10.0 * CELL_SIZE, 20.0 * CELL_SIZE];
         let background_transform = transform;
         rectangle(BLACK.to_color(), square, background_transform, g);
@@ -134,8 +153,15 @@ impl App {
                 }
             }
         }
+    }
 
+    fn render_current_piece<G: Graphics>(
+        transform: Matrix2d,
+        g: &mut G,
+        current_piece: &Option<FallingPiece>,
+    ) {
         if let Some(current_piece) = current_piece {
+            let cell_offset_y = 20;
             let pos = current_piece.piece_position;
             let cell = current_piece.piece_state.get_kind().into();
 

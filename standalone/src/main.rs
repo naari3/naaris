@@ -8,7 +8,6 @@ use std::fs::read_to_string;
 
 use app::{App, CELL_SIZE};
 
-use fps_counter::FPSCounter;
 use piston_window::{ButtonEvent, EventLoop, PistonWindow, RenderEvent, WindowSettings};
 use settings::Settings;
 use tetris::{Game, Music, Sound};
@@ -34,18 +33,21 @@ fn main() {
         settings.game.lock_delay,
         settings.game.line_clear_delay,
     );
-    let mut app = App::new(game, settings);
-    let mut a = FPSCounter::default();
+    // Pixeloid Sans
+    // This font family are licensed under the SIL Open Font License, Version 1.1.
+    // https://ggbot.itch.io/pixeloid-font
+    let font_path = "./assets/PixeloidSans.ttf";
+    let glyphs = window.load_font(font_path).unwrap();
+    let mut app = App::new(game, settings, glyphs);
     music::start::<Music, Sound, _>(16, || {
         sound::init();
         music::set_volume(0.5);
         while let Some(event) = window.next() {
             if let Some(args) = event.render_args() {
-                window.draw_2d(&event, |c, g2d, _| {
+                window.draw_2d(&event, |c, g2d, d| {
                     app.update();
-                    app.render(&args, c, g2d);
+                    app.render(&args, c, g2d, d);
                 });
-                println!("{:?}", a.tick());
             }
             // if let Some(_args) = event.update_args() {}
 
