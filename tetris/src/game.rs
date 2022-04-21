@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{Board, FallingPiece, Input, Piece, PieceState, Sound};
+use crate::{Board, FallingPiece, Input, Piece, PieceState, Sound, TetrisEvent};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DasState {
@@ -26,6 +26,7 @@ pub struct Game {
     previous_input: Input,
     rotate_used: bool,
     sound_queue: Vec<Sound>,
+    event_queue: Vec<TetrisEvent>,
     das: usize,
     das_counter: usize,
     das_state: DasState,
@@ -104,6 +105,7 @@ impl Game {
             previous_input: Default::default(),
             rotate_used: false,
             sound_queue: vec![],
+            event_queue: vec![],
             das: 8,
             das_counter: 0,
             das_state: Default::default(),
@@ -139,6 +141,7 @@ impl Game {
             previous_input: Default::default(),
             rotate_used: false,
             sound_queue: vec![],
+            event_queue: vec![],
             das,
             das_counter: 0,
             das_state: Default::default(),
@@ -196,6 +199,8 @@ impl Game {
                 self.lock_counter += 1;
                 if self.lock_counter >= self.lock_delay {
                     self.board.set_piece(&current_piece).unwrap();
+                    self.event_queue
+                        .push(TetrisEvent::PieceLocked(current_piece));
                     self.current_piece = None;
                     self.rotate_used = false;
                     self.are_counter = Some(self.are);
@@ -289,6 +294,8 @@ impl Game {
                     if current_piece.check_shift_collision(&self.board, 0, i) {
                         current_piece.shift(&self.board, 0, i - 1);
                         self.board.set_piece(&current_piece).unwrap();
+                        self.event_queue
+                            .push(TetrisEvent::PieceLocked(current_piece.clone()));
                         self.current_piece = None;
                         self.lock_counter = 0;
                         self.are_counter = Some(self.are);
@@ -387,6 +394,10 @@ impl Game {
             Piece::S => Sound::PieceS,
             Piece::Z => Sound::PieceZ,
         }
+    }
+
+    pub fn get_event_queue(&mut self) -> &mut Vec<TetrisEvent> {
+        self.event_queue.as_mut()
     }
 
     pub fn set_input(&mut self, input: Input) {

@@ -45,3 +45,9 @@ pub enum Sound {
     PieceS,
     PieceZ,
 }
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub enum TetrisEvent {
+    LineCleared(usize),
+    PieceLocked(FallingPiece),
+}

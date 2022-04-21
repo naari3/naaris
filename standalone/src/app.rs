@@ -153,6 +153,7 @@ pub struct App {
     game: Game,   // Game
     input: Input, // Input
     settings: Settings,
+    locked_piece: Option<FallingPiece>,
 }
 pub const CELL_SIZE: f64 = 16.0;
 
@@ -164,6 +165,7 @@ impl App {
             game,
             input: Default::default(),
             settings,
+            locked_piece: None,
         }
     }
 
@@ -192,11 +194,7 @@ impl App {
             self.game.get_next_next_next(),
         );
 
-        App::render_board(
-            c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0),
-            g2d,
-            &self.game.get_board(),
-        );
+        self.render_board(c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0), g2d);
         App::render_board_pieces_outline(
             c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0),
             g2d,
@@ -263,11 +261,12 @@ impl App {
         line_from_to(color, radius, bottom[0], bottom[1], transform, g);
     }
 
-    fn render_board<G: Graphics>(transform: Matrix2d, g: &mut G, board: &Board) {
+    fn render_board<G: Graphics>(&mut self, transform: Matrix2d, g: &mut G) {
         let square = [0.0, 0.0, 10.0 * CELL_SIZE, 20.0 * CELL_SIZE];
         let background_transform = transform;
         rectangle(BLACK.to_color(), square, background_transform, g);
         let cell_offset_y = 20;
+        let board = self.game.get_board();
         for (y, cells_x) in board.cells.iter().enumerate() {
             if y < cell_offset_y {
                 continue;
@@ -280,6 +279,27 @@ impl App {
                     None => {}
                 }
             }
+        }
+        if let Some(locked_piece) = self.locked_piece {
+            let cell_offset_y = 20;
+            let pos = locked_piece.piece_position;
+            let cell = Cell::White;
+
+            for (rel_x, rel_y) in locked_piece.piece_state.get_cells().iter() {
+                let exist = board.cells[(-rel_y + pos.1 as i16) as usize]
+                    [(rel_x + pos.0 as i16) as usize]
+                    .is_some();
+                if exist {
+                    App::render_cell(
+                        transform,
+                        g,
+                        (rel_x + pos.0 as i16) as _,
+                        ((-rel_y - cell_offset_y as i16) + pos.1 as i16) as _,
+                        &cell,
+                    );
+                }
+            }
+            self.locked_piece = None
         }
     }
 
@@ -374,11 +394,26 @@ impl App {
     pub fn update(&mut self) {
         self.game.set_input(self.input);
         self.game.update();
-        let sound_queue = self.game.get_sound_queue();
-        while sound_queue.len() > 0 {
-            if let Some(sound) = sound_queue.pop() {
-                music::play_sound(&sound, music::Repeat::Times(0), 0.25);
-            };
+        {
+            let sound_queue = self.game.get_sound_queue();
+            while sound_queue.len() > 0 {
+                if let Some(sound) = sound_queue.pop() {
+                    music::play_sound(&sound, music::Repeat::Times(0), 0.25);
+                };
+            }
+        }
+        {
+            let event_queue = self.game.get_event_queue();
+            while event_queue.len() > 0 {
+                if let Some(event) = event_queue.pop() {
+                    match event {
+                        tetris::TetrisEvent::PieceLocked(piece) => {
+                            self.locked_piece = Some(piece);
+                        }
+                        _ => unimplemented!(),
+                    }
+                };
+            }
         }
     }
 
