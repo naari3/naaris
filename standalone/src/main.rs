@@ -40,7 +40,7 @@ fn main() {
     let glyphs = window.load_font(font_path).unwrap();
     let mut app = App::new(game, settings, glyphs);
 
-    music::start::<Music, Sound, _>(16, || {
+    music::start::<Music, Sound, _>(256, || {
         sound::init();
         music::set_volume(0.5);
         while let Some(event) = window.next() {
