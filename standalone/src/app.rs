@@ -52,14 +52,23 @@ impl App {
         clear(BLACK.to_color(), g2d);
 
         App::render_hold(
-            c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 2.0),
+            c.transform
+                .trans(CELL_SIZE * 1.5, CELL_SIZE * 2.0)
+                .scale(0.5, 0.5),
             g2d,
             self.game.get_hold(),
         );
         App::render_next(
-            c.transform.trans(CELL_SIZE * 6.0, CELL_SIZE * 2.0),
+            c.transform.trans(CELL_SIZE * 5.0, CELL_SIZE * 2.0),
             g2d,
             self.game.get_next(),
+        );
+
+        App::render_nexts(
+            c.transform
+                .trans(CELL_SIZE * 6.5, CELL_SIZE * 2.5)
+                .scale(0.5, 0.5),
+            g2d,
             self.game.get_next_next(),
             self.game.get_next_next_next(),
         );
@@ -155,18 +164,18 @@ impl App {
         }
     }
 
-    fn render_next<G: Graphics>(
+    fn render_next<G: Graphics>(transform: Matrix2d, g: &mut G, next: Piece) {
+        App::render_piece(transform, g, next);
+    }
+
+    fn render_nexts<G: Graphics>(
         transform: Matrix2d,
         g: &mut G,
-        next: Piece,
         next_next: Piece,
         next_next_next: Piece,
     ) {
-        App::render_piece(transform, g, next);
-
         App::render_piece(transform.trans(CELL_SIZE * 4.0, 0.0), g, next_next);
-
-        App::render_piece(transform.trans(CELL_SIZE * 8.0, 0.0), g, next_next_next);
+        App::render_piece(transform.trans(CELL_SIZE * 9.0, 0.0), g, next_next_next);
     }
 
     fn render_cell<G: Graphics>(transform: Matrix2d, g: &mut G, x: i32, y: i32, cell: &Cell) {
@@ -177,7 +186,7 @@ impl App {
 
         let transform = transform
             .trans((x as f64 * CELL_SIZE) + 0.0, (y as f64 * CELL_SIZE) + 0.0)
-            .scale(0.75, 0.75);
+            .scale(0.9, 0.9);
         // let transform = IDENTITY;
         let color = match cell {
             Black => BLACK,
