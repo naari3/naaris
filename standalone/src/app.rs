@@ -82,6 +82,60 @@ impl PieceLineInfo {
     }
 }
 
+trait GetNeighbor {
+    fn exists(&self, x: usize, y: usize) -> Option<bool>;
+    fn get_line_infos(&self) -> Vec<PieceLineInfo>;
+}
+
+impl GetNeighbor for Board {
+    fn exists(&self, x: usize, y: usize) -> Option<bool> {
+        if let Some(cells_x) = self.cells.get(y) {
+            if let Some(cell_x) = cells_x.get(x) {
+                return Some(cell_x.is_some());
+            }
+        }
+        None
+    }
+
+    fn get_line_infos(&self) -> Vec<PieceLineInfo> {
+        let cell_offset_y = 20;
+        let mut line_infos = vec![];
+        for x in 0..10usize {
+            for y in (0usize + cell_offset_y)..(20 + cell_offset_y) {
+                if let Some(has_center) = self.exists(x, y) {
+                    if has_center {
+                        continue;
+                    }
+                    for offset_x in -1..=1 {
+                        for offset_y in -1..=1 {
+                            let target_x = (x as isize).saturating_add(offset_x) as usize;
+                            let target_y = (y as isize).saturating_add(offset_y) as usize;
+                            if let Some(exist) = self.exists(target_x, target_y) {
+                                if !exist {
+                                    continue;
+                                }
+                                let kind = match (offset_x, offset_y) {
+                                    (-1, -1) => PieceLine::TopLeft,
+                                    (0, -1) => PieceLine::Top,
+                                    (1, -1) => PieceLine::TopRight,
+                                    (-1, 0) => PieceLine::Left,
+                                    (1, 0) => PieceLine::Right,
+                                    (-1, 1) => PieceLine::BottomLeft,
+                                    (0, 1) => PieceLine::Bottom,
+                                    (1, 1) => PieceLine::BottomRight,
+                                    (_, _) => unreachable!(),
+                                };
+                                line_infos.push(PieceLineInfo(x, y - cell_offset_y, kind))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        line_infos
+    }
+}
+
 const BLACK: [u8; 4] = [0, 0, 0, 255];
 const WHITE: [u8; 4] = [255, 255, 255, 255];
 const RED: [u8; 4] = [215, 15, 55, 255];
@@ -230,66 +284,7 @@ impl App {
     }
 
     fn render_board_pieces_outline<G: Graphics>(transform: Matrix2d, g: &mut G, board: &Board) {
-        let cell_offset_y = 20;
-        let mut line_infos = vec![];
-        for x in 0..10 {
-            for y in (0 + cell_offset_y)..(20 + cell_offset_y) {
-                if let None = board.cells[y][x] {
-                    if x > 0 {
-                        if let Some(_top_left) = board.cells[y - 1][x - 1] {
-                            line_infos.push(PieceLineInfo(x, y - cell_offset_y, PieceLine::TopLeft))
-                        }
-                    }
-                    if x < 9 {
-                        if let Some(_top_right) = board.cells[y - 1][x + 1] {
-                            line_infos.push(PieceLineInfo(
-                                x,
-                                y - cell_offset_y,
-                                PieceLine::TopRight,
-                            ))
-                        }
-                    }
-                    if let Some(_top) = board.cells[y - 1][x] {
-                        line_infos.push(PieceLineInfo(x, y - cell_offset_y, PieceLine::Top))
-                    }
-                    if y < 20 + (cell_offset_y - 1) {
-                        if let Some(_bottom) = board.cells[y + 1][x] {
-                            line_infos.push(PieceLineInfo(x, y - cell_offset_y, PieceLine::Bottom))
-                        }
-                        if x > 0 {
-                            if let Some(_bottom_left) = board.cells[y + 1][x - 1] {
-                                line_infos.push(PieceLineInfo(
-                                    x,
-                                    y - cell_offset_y,
-                                    PieceLine::BottomLeft,
-                                ))
-                            }
-                        }
-                        if x < 9 {
-                            if let Some(_bottom_right) = board.cells[y + 1][x + 1] {
-                                line_infos.push(PieceLineInfo(
-                                    x,
-                                    y - cell_offset_y,
-                                    PieceLine::BottomRight,
-                                ))
-                            }
-                        }
-                    }
-                    if x > 0 {
-                        if let Some(_left) = board.cells[y][x - 1] {
-                            line_infos.push(PieceLineInfo(x, y - cell_offset_y, PieceLine::Left))
-                        }
-                    }
-                    if x < 9 {
-                        if let Some(_right) = board.cells[y][x + 1] {
-                            line_infos.push(PieceLineInfo(x, y - cell_offset_y, PieceLine::Right))
-                        }
-                    }
-                }
-            }
-        }
-
-        for line_info in line_infos.iter() {
+        for line_info in board.get_line_infos().iter() {
             let (from, to) = line_info.to_from_to();
             use PieceLine::*;
             match line_info.2 {
@@ -394,30 +389,6 @@ impl App {
         };
         match args.button {
             Button::Keyboard(key) => match key {
-                // J => {
-                //     self.input.ccw = state;
-                // }
-                // K => {
-                //     self.input.cw = state;
-                // }
-                // Space => {
-                //     self.input.hold = state;
-                // }
-                // D => {
-                //     self.input.left = state;
-                // }
-                // A => {
-                //     self.input.right = state;
-                // }
-                // W => {
-                //     self.input.hard_drop = state;
-                // }
-                // S => {
-                //     self.input.soft_drop = state;
-                // }
-                // R => {
-                //     self.game = Game::new();
-                // }
                 _ => {
                     if self.settings.key.left == key.code() as _ {
                         self.input.left = state;
