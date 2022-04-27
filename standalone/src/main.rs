@@ -1,6 +1,7 @@
 extern crate piston_window;
 
 mod app;
+mod renderers;
 mod settings;
 mod sound;
 

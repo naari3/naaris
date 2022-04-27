@@ -15,9 +15,24 @@ impl Default for DasState {
     }
 }
 
+pub trait GameState {
+    fn update(&mut self);
+    fn get_board(&self) -> Board;
+    fn get_current_piece(&self) -> Option<FallingPiece>;
+    fn get_locked_piece(&self) -> Option<FallingPiece>;
+    fn get_hold(&self) -> Option<Piece>;
+    fn get_next(&self) -> Piece;
+    fn get_next_next(&self) -> Piece;
+    fn get_next_next_next(&self) -> Piece;
+    fn get_sound_queue(&mut self) -> &mut Vec<Sound>;
+    fn get_event_queue(&mut self) -> &mut Vec<TetrisEvent>;
+    fn set_input(&mut self, input: Input);
+}
+
 pub struct Game {
     board: Board,
-    pub current_piece: Option<FallingPiece>,
+    current_piece: Option<FallingPiece>,
+    locked_piece: Option<FallingPiece>,
     gravity: f64,
     shift_down_counter: f64,
     lock_delay: usize,
@@ -97,6 +112,7 @@ impl Game {
         Self {
             board,
             current_piece: Some(current_piece),
+            locked_piece: None,
             gravity: 20.0,
             shift_down_counter: 0.0,
             lock_delay: 18,
@@ -133,6 +149,7 @@ impl Game {
         Self {
             board,
             current_piece: Some(current_piece),
+            locked_piece: None,
             gravity,
             shift_down_counter: 0.0,
             lock_delay,
@@ -154,41 +171,6 @@ impl Game {
         }
     }
 
-    pub fn update(&mut self) {
-        if let None = self.current_piece {
-            if let Some(line_clear_lock_timer) = self.line_clear_lock_timer.as_mut() {
-                *line_clear_lock_timer -= 1;
-                if *line_clear_lock_timer <= 0 {
-                    self.sound_queue.push(Sound::Fall);
-                    self.line_clear_lock_timer = None;
-                    self.board.line_shrink();
-                }
-            } else {
-                if let Some(are_counter) = self.are_counter.as_mut() {
-                    *are_counter -= 1;
-                    if *are_counter <= 0 {
-                        let next_piece = PieceState::from_piece(self.board.pop_next());
-                        self.current_piece = FallingPiece::from_piece_state(next_piece).into();
-
-                        let sound = self.get_next_sound();
-                        self.sound_queue.push(sound);
-
-                        self.hold_used = false;
-                        self.are_counter = None;
-                    }
-                }
-            }
-        }
-        self.handle_hold();
-        self.handle_rotate();
-        self.handle_hard_drop();
-        self.apply_gravity();
-        self.handle_shift();
-        self.apply_line_clear();
-
-        self.previous_input = self.input;
-    }
-
     fn apply_gravity(&mut self) {
         if let Some(mut current_piece) = self.current_piece.clone() {
             if current_piece.check_shift_collision(&self.board, 0, 1) {
@@ -202,6 +184,7 @@ impl Game {
                     self.event_queue
                         .push(TetrisEvent::PieceLocked(current_piece));
                     self.current_piece = None;
+                    self.locked_piece = Some(current_piece.clone());
                     self.rotate_used = false;
                     self.are_counter = Some(self.are);
                     self.lock_counter = 0;
@@ -296,6 +279,7 @@ impl Game {
                         self.board.set_piece(&current_piece).unwrap();
                         self.event_queue
                             .push(TetrisEvent::PieceLocked(current_piece.clone()));
+                        self.locked_piece = Some(current_piece.clone());
                         self.current_piece = None;
                         self.lock_counter = 0;
                         self.are_counter = Some(self.are);
@@ -360,31 +344,7 @@ impl Game {
         }
     }
 
-    pub fn get_board(&self) -> Board {
-        self.board.clone()
-    }
-
-    pub fn get_hold(&self) -> Option<Piece> {
-        self.board.hold_piece.clone()
-    }
-
-    pub fn get_next(&self) -> Piece {
-        self.board.next_pieces[0]
-    }
-
-    pub fn get_next_next(&self) -> Piece {
-        self.board.next_pieces[1]
-    }
-
-    pub fn get_next_next_next(&self) -> Piece {
-        self.board.next_pieces[2]
-    }
-
-    pub fn get_sound_queue(&mut self) -> &mut Vec<Sound> {
-        self.sound_queue.as_mut()
-    }
-
-    pub fn get_next_sound(&self) -> Sound {
+    fn get_next_sound(&self) -> Sound {
         match self.get_next() {
             Piece::I => Sound::PieceI,
             Piece::O => Sound::PieceO,
@@ -395,12 +355,84 @@ impl Game {
             Piece::Z => Sound::PieceZ,
         }
     }
+}
 
-    pub fn get_event_queue(&mut self) -> &mut Vec<TetrisEvent> {
+impl GameState for Game {
+    fn update(&mut self) {
+        if let Some(_locked_piece) = self.locked_piece {
+            self.locked_piece = None;
+        }
+        if let None = self.current_piece {
+            if let Some(line_clear_lock_timer) = self.line_clear_lock_timer.as_mut() {
+                *line_clear_lock_timer -= 1;
+                if *line_clear_lock_timer <= 0 {
+                    self.sound_queue.push(Sound::Fall);
+                    self.line_clear_lock_timer = None;
+                    self.board.line_shrink();
+                }
+            } else {
+                if let Some(are_counter) = self.are_counter.as_mut() {
+                    *are_counter -= 1;
+                    if *are_counter <= 0 {
+                        let next_piece = PieceState::from_piece(self.board.pop_next());
+                        self.current_piece = FallingPiece::from_piece_state(next_piece).into();
+
+                        let sound = self.get_next_sound();
+                        self.sound_queue.push(sound);
+
+                        self.hold_used = false;
+                        self.are_counter = None;
+                    }
+                }
+            }
+        }
+        self.handle_hold();
+        self.handle_rotate();
+        self.handle_hard_drop();
+        self.apply_gravity();
+        self.handle_shift();
+        self.apply_line_clear();
+
+        self.previous_input = self.input;
+    }
+
+    fn get_board(&self) -> Board {
+        self.board.clone()
+    }
+
+    fn get_current_piece(&self) -> Option<FallingPiece> {
+        self.current_piece.clone()
+    }
+
+    fn get_locked_piece(&self) -> Option<FallingPiece> {
+        self.locked_piece.clone()
+    }
+
+    fn get_hold(&self) -> Option<Piece> {
+        self.board.hold_piece.clone()
+    }
+
+    fn get_next(&self) -> Piece {
+        self.board.next_pieces[0]
+    }
+
+    fn get_next_next(&self) -> Piece {
+        self.board.next_pieces[1]
+    }
+
+    fn get_next_next_next(&self) -> Piece {
+        self.board.next_pieces[2]
+    }
+
+    fn get_sound_queue(&mut self) -> &mut Vec<Sound> {
+        self.sound_queue.as_mut()
+    }
+
+    fn get_event_queue(&mut self) -> &mut Vec<TetrisEvent> {
         self.event_queue.as_mut()
     }
 
-    pub fn set_input(&mut self, input: Input) {
+    fn set_input(&mut self, input: Input) {
         self.input = input;
     }
 }
