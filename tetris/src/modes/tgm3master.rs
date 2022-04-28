@@ -4,12 +4,18 @@ use arrayvec::ArrayVec;
 
 use crate::{Board, FallingPiece, Game, GameState, Input, Piece, Sound, TetrisEvent};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Status {
     Game,
     Clear,
-    Roll,
+    Roll(Roll),
     End,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Roll {
+    Normal,
+    Invisible,
 }
 
 #[derive(Debug, Clone)]
@@ -31,14 +37,14 @@ pub struct TGM3Master {
     start_roll_timer: Option<usize>,
     roll_timer: Option<usize>,
     envets: Vec<TGM3Event>,
-    opacity_timer: ArrayVec<ArrayVec<Option<usize>, 10>, 40>,
+    opacity_timers: ArrayVec<ArrayVec<Option<usize>, 10>, 40>,
 }
 
 impl TGM3Master {
     pub fn new() -> Self {
-        let mut opacity_timer = ArrayVec::new();
+        let mut opacity_timers = ArrayVec::new();
         for _ in 0..40 {
-            opacity_timer.push(ArrayVec::from([None; 10]));
+            opacity_timers.push(ArrayVec::from([None; 10]));
         }
         let mut me = Self {
             inner: Game::new(),
@@ -53,7 +59,7 @@ impl TGM3Master {
             start_roll_timer: None,
             roll_timer: None,
             envets: vec![],
-            opacity_timer,
+            opacity_timers,
         };
         me.sync_settings();
         me
@@ -281,8 +287,6 @@ impl TGM3Master {
             match e {
                 TetrisEvent::LineCleared(n) => {
                     let up = match n {
-                        1 => 10,
-                        2 => 10,
                         3 => 4,
                         4 => 6,
                         _ => *n,
@@ -290,8 +294,7 @@ impl TGM3Master {
                     self.level_up(up, true);
                 }
                 TetrisEvent::PieceSpawned(_) => {
-                    println!("spawned");
-                    self.level_up(10, false);
+                    self.level_up(1, false);
                 }
                 _ => {}
             }
@@ -306,7 +309,7 @@ impl TGM3Master {
     fn set_opacity_timer(&mut self, piece: &FallingPiece, time: usize) {
         let (x, y) = piece.piece_position;
         for (rel_x, rel_y) in piece.piece_state.get_cells().into_iter() {
-            if let Some(timers_x) = self.opacity_timer.get_mut((-rel_y + y as i16) as usize) {
+            if let Some(timers_x) = self.opacity_timers.get_mut((-rel_y + y as i16) as usize) {
                 if let Some(timer) = timers_x.get_mut((rel_x + x as i16) as usize) {
                     *timer = Some(time);
                 }
@@ -314,9 +317,9 @@ impl TGM3Master {
         }
     }
 
-    fn roll_update(&mut self) {
+    fn roll_update(&mut self, roll: Roll) {
         self.inner.update();
-        for (y, timers_x) in self.opacity_timer.iter_mut().enumerate() {
+        for (y, timers_x) in self.opacity_timers.iter_mut().enumerate() {
             for (x, timer) in timers_x.into_iter().enumerate() {
                 let original_cells = self.inner.get_board().cells;
                 let valid = original_cells
@@ -338,8 +341,19 @@ impl TGM3Master {
         for e in events.iter() {
             match e {
                 TetrisEvent::PieceLocked(p) => {
-                    let time = if self.is_all_cool() { 0 } else { 60 * 5 };
+                    let time = match roll {
+                        Roll::Normal => 60 * 5,
+                        Roll::Invisible => 4,
+                    };
                     self.set_opacity_timer(p, time);
+                }
+                TetrisEvent::LineShrinked(shrinked) => {
+                    for y in shrinked.iter().rev() {
+                        self.opacity_timers.remove(*y);
+                    }
+                    for _ in 0..shrinked.len() {
+                        self.opacity_timers.insert(0, ArrayVec::from([None; 10]));
+                    }
                 }
                 _ => {}
             }
@@ -348,6 +362,14 @@ impl TGM3Master {
 
     pub fn get_tgm3events(&mut self) -> &mut Vec<TGM3Event> {
         self.envets.as_mut()
+    }
+
+    pub fn get_opacity_timers(&self) -> ArrayVec<ArrayVec<Option<usize>, 10>, 40> {
+        self.opacity_timers.clone()
+    }
+
+    pub fn get_status(&self) -> Status {
+        self.status
     }
 }
 
@@ -362,14 +384,18 @@ impl GameState for TGM3Master {
                 if let Some(timer) = self.start_roll_timer.as_mut() {
                     if *timer == 0 {
                         self.inner.clear_board();
-                        self.status = Status::Roll;
+                        self.status = Status::Roll(if self.is_all_cool() {
+                            Roll::Invisible
+                        } else {
+                            Roll::Normal
+                        });
                     } else {
                         *timer -= 1;
                     }
                 }
             }
-            Status::Roll => {
-                self.roll_update();
+            Status::Roll(roll) => {
+                self.roll_update(roll);
                 if let None = self.roll_timer {
                     self.roll_timer = Some(3238);
                 }

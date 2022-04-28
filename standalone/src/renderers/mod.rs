@@ -1,6 +1,6 @@
-use graphics::{types::Color, Context};
+use graphics::{math::Matrix2d, types::Color, Context, Graphics, Text, Transformed};
 use piston_window::{G2d, GfxDevice, Glyphs, RenderArgs};
-use tetris::Board;
+use tetris::{Board, Cell, FallingPiece, GameState, Piece};
 
 use crate::CELL_SIZE;
 
@@ -16,6 +16,34 @@ pub trait Renderer {
         d: &mut GfxDevice,
         glyphs: &mut Glyphs,
     );
+}
+
+pub trait RenderInner {
+    fn render_board_outline<G: Graphics>(&self, transform: Matrix2d, g: &mut G, radius: f64);
+    fn render_board<G: Graphics>(&self, transform: Matrix2d, g: &mut G);
+    fn render_board_pieces_outline<G: Graphics>(
+        &self,
+        transform: Matrix2d,
+        g: &mut G,
+        board: &Board,
+    );
+    fn render_current_piece<G: Graphics>(
+        &self,
+        transform: Matrix2d,
+        g: &mut G,
+        current_piece: &Option<FallingPiece>,
+    );
+    fn render_hold<G: Graphics>(&self, transform: Matrix2d, g: &mut G, hold: Option<Piece>);
+    fn render_piece<G: Graphics>(&self, transform: Matrix2d, g: &mut G, piece: Piece);
+    fn render_next<G: Graphics>(&self, transform: Matrix2d, g: &mut G, next: Piece);
+    fn render_nexts<G: Graphics>(
+        &self,
+        transform: Matrix2d,
+        g: &mut G,
+        next_next: Piece,
+        next_next_next: Piece,
+    );
+    fn render_cell<G: Graphics>(&self, transform: Matrix2d, g: &mut G, x: i32, y: i32, cell: &Cell);
 }
 
 trait ToColor {
@@ -46,11 +74,11 @@ enum PieceLine {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct PieceLineInfo(usize, usize, PieceLine);
+struct PieceLineInfo(usize, usize, PieceLine, (usize, usize));
 
 impl PieceLineInfo {
     fn to_from_to(&self) -> ([f64; 2], [f64; 2]) {
-        let &PieceLineInfo(x, y, line) = self;
+        let &PieceLineInfo(x, y, line, _) = self;
         let x = x as f64;
         let y = y as f64;
         match line {
@@ -133,7 +161,15 @@ impl GetNeighbor for Board {
                                     (1, 1) => PieceLine::BottomRight,
                                     (_, _) => unreachable!(),
                                 };
-                                line_infos.push(PieceLineInfo(x, y - cell_offset_y, kind))
+                                line_infos.push(PieceLineInfo(
+                                    x,
+                                    y - cell_offset_y,
+                                    kind,
+                                    (
+                                        (x as isize + offset_x) as _,
+                                        ((y - cell_offset_y) as isize + offset_y) as _,
+                                    ),
+                                ))
                             }
                         }
                     }
@@ -154,3 +190,62 @@ const CYAN: [u8; 4] = [15, 155, 215, 255];
 const BLUE: [u8; 4] = [33, 65, 198, 255];
 const PURPLE: [u8; 4] = [175, 41, 138, 255];
 const GRAY: [u8; 4] = [107, 107, 107, 255];
+
+pub fn standard_render<G: GameState + RenderInner>(
+    game: &mut G,
+    _args: &RenderArgs,
+    c: Context,
+    g2d: &mut G2d,
+    _d: &mut GfxDevice,
+    glyphs: &mut Glyphs,
+) {
+    game.render_hold(
+        c.transform
+            .trans(CELL_SIZE * 1.5, CELL_SIZE * 2.5)
+            .scale(0.5, 0.5),
+        g2d,
+        game.get_hold(),
+    );
+    game.render_next(
+        c.transform.trans(CELL_SIZE * 5.0, CELL_SIZE * 2.0),
+        g2d,
+        game.get_next(),
+    );
+
+    game.render_nexts(
+        c.transform
+            .trans(CELL_SIZE * 6.5, CELL_SIZE * 2.5)
+            .scale(0.5, 0.5),
+        g2d,
+        game.get_next_next(),
+        game.get_next_next_next(),
+    );
+
+    game.render_board(c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0), g2d);
+    game.render_board_pieces_outline(
+        c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0),
+        g2d,
+        &game.get_board(),
+    );
+    game.render_board_outline(
+        c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0),
+        g2d,
+        1.0,
+    );
+    game.render_current_piece(
+        c.transform.trans(CELL_SIZE * 1.0, CELL_SIZE * 4.0),
+        g2d,
+        &game.get_current_piece(),
+    );
+
+    Text::new_color(WHITE.to_color(), 8)
+        .draw(
+            "next",
+            glyphs,
+            &c.draw_state,
+            c.transform.trans(16.0, 20.0),
+            g2d,
+        )
+        .unwrap();
+    // glyphs.factory.encoder.flush(d);
+}

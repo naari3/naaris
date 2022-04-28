@@ -134,7 +134,7 @@ impl Board {
         }
     }
 
-    pub fn line_shrink(&mut self) {
+    pub fn line_shrink(&mut self) -> Vec<usize> {
         let mut lines = vec![];
         for (y, cells_x) in self.cells.iter_mut().enumerate() {
             if cells_x.iter().all(|d| d.is_none()) {
@@ -147,6 +147,7 @@ impl Board {
         for _ in 0..lines.len() {
             self.cells.insert(0, ArrayVec::from([None; 10]));
         }
+        lines
     }
 
     pub fn swap_hold_piece(&mut self, piece: Piece) -> Option<Piece> {

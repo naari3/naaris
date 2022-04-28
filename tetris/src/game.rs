@@ -404,7 +404,8 @@ impl GameState for Game {
                 if *line_clear_lock_timer <= 0 {
                     self.sound_queue.push(Sound::Fall);
                     self.line_clear_lock_timer = None;
-                    self.board.line_shrink();
+                    let shrinked = self.board.line_shrink();
+                    self.event_queue.push(TetrisEvent::LineShrinked(shrinked));
                 }
             } else {
                 if let Some(are_counter) = self.are_counter.as_mut() {
