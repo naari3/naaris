@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use arrayvec::ArrayVec;
+
 use crate::{Board, FallingPiece, Input, Piece, PieceState, Sound, TetrisEvent};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -380,6 +382,14 @@ impl Game {
             Piece::S => Sound::PieceS,
             Piece::Z => Sound::PieceZ,
         }
+    }
+
+    pub fn clear_board(&mut self) {
+        let mut cells = ArrayVec::new();
+        for _ in 0..40 {
+            cells.push(ArrayVec::from([None; 10]));
+        }
+        self.board.cells = cells;
     }
 }
 

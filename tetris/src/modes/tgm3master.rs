@@ -1,6 +1,21 @@
 use std::time::{Duration, Instant};
 
+use arrayvec::ArrayVec;
+
 use crate::{Board, FallingPiece, Game, GameState, Input, Piece, Sound, TetrisEvent};
+
+#[derive(Debug, Clone)]
+pub enum Status {
+    Game,
+    Clear,
+    Roll,
+    End,
+}
+
+#[derive(Debug, Clone)]
+pub enum TGM3Event {
+    StatusChange(Status),
+}
 
 #[derive(Debug, Clone)]
 pub struct TGM3Master {
@@ -12,11 +27,19 @@ pub struct TGM3Master {
     cool_line_section_times: [Option<Duration>; 9],
     cools: [Option<bool>; 9],
     regrets: [Option<bool>; 9],
-    ending: bool,
+    status: Status,
+    start_roll_timer: Option<usize>,
+    roll_timer: Option<usize>,
+    envets: Vec<TGM3Event>,
+    opacity_timer: ArrayVec<ArrayVec<Option<usize>, 10>, 40>,
 }
 
 impl TGM3Master {
     pub fn new() -> Self {
+        let mut opacity_timer = ArrayVec::new();
+        for _ in 0..40 {
+            opacity_timer.push(ArrayVec::from([None; 10]));
+        }
         let mut me = Self {
             inner: Game::new(),
             level: 0,
@@ -26,7 +49,11 @@ impl TGM3Master {
             cool_line_section_times: [None; 9],
             cools: [None; 9],
             regrets: [None; 9],
-            ending: false,
+            status: Status::Game,
+            start_roll_timer: None,
+            roll_timer: None,
+            envets: vec![],
+            opacity_timer,
         };
         me.sync_settings();
         me
@@ -136,10 +163,11 @@ impl TGM3Master {
         };
         if rank > 0 {
             let prev_rank = rank - 1;
-            let prev = self.cool_line_section_times[prev_rank].unwrap();
-            let player_border = prev + Duration::from_secs(2);
-            if player_border < set {
-                return player_border;
+            if let Some(prev) = self.cool_line_section_times[prev_rank] {
+                let player_border = prev + Duration::from_secs(2);
+                if player_border < set {
+                    return player_border;
+                }
             }
         }
         set
@@ -195,8 +223,9 @@ impl TGM3Master {
         }
 
         if self.level % 100 >= 80 && rank < 9 && self.cools[rank].is_none() {
-            let current_cool_section_time = self.cool_line_section_times[rank].unwrap();
-            self.cools[rank] = Some(self.cool_border(rank) > current_cool_section_time);
+            if let Some(current_cool_section_time) = self.cool_line_section_times[rank] {
+                self.cools[rank] = Some(self.cool_border(rank) > current_cool_section_time);
+            }
         }
 
         if line_clear {
@@ -223,7 +252,8 @@ impl TGM3Master {
     fn rank_up(&mut self) {
         let section_time = self.current_section_time();
         if self.level == 999 {
-            self.ending = true;
+            self.status = Status::Clear;
+            self.envets.push(TGM3Event::StatusChange(Status::Clear));
             self.section_times[8] = Some(section_time);
             let regret = self.regret_border(8) < section_time;
             self.regrets[8] = Some(regret);
@@ -232,23 +262,27 @@ impl TGM3Master {
                 self.section_times[prev_rank] = Some(section_time);
                 let regret = self.regret_border(prev_rank) < section_time;
                 self.regrets[prev_rank] = Some(regret);
-                if !regret && self.cools[prev_rank].unwrap() {
-                    self.speed_level += 100;
+                if !regret {
+                    if let Some(cool) = self.cools[prev_rank] {
+                        if cool {
+                            self.speed_level += 100;
+                        }
+                    }
                 }
             }
             self.inner.get_sound_queue().push(Sound::RankUp);
         }
     }
-}
 
-impl GameState for TGM3Master {
-    fn update(&mut self) {
+    fn game_update(&mut self) {
         self.inner.update();
         let events = self.inner.get_event_queue().clone();
         for e in events.iter() {
             match e {
                 TetrisEvent::LineCleared(n) => {
                     let up = match n {
+                        1 => 10,
+                        2 => 10,
                         3 => 4,
                         4 => 6,
                         _ => *n,
@@ -257,12 +291,96 @@ impl GameState for TGM3Master {
                 }
                 TetrisEvent::PieceSpawned(_) => {
                     println!("spawned");
-                    self.level_up(6, false);
+                    self.level_up(10, false);
                 }
                 _ => {}
             }
         }
         self.sync_settings();
+    }
+
+    fn is_all_cool(&mut self) -> bool {
+        self.cools.into_iter().all(|c| c.unwrap_or(false))
+    }
+
+    fn set_opacity_timer(&mut self, piece: &FallingPiece, time: usize) {
+        let (x, y) = piece.piece_position;
+        for (rel_x, rel_y) in piece.piece_state.get_cells().into_iter() {
+            if let Some(timers_x) = self.opacity_timer.get_mut((-rel_y + y as i16) as usize) {
+                if let Some(timer) = timers_x.get_mut((rel_x + x as i16) as usize) {
+                    *timer = Some(time);
+                }
+            }
+        }
+    }
+
+    fn roll_update(&mut self) {
+        self.inner.update();
+        for (y, timers_x) in self.opacity_timer.iter_mut().enumerate() {
+            for (x, timer) in timers_x.into_iter().enumerate() {
+                let original_cells = self.inner.get_board().cells;
+                let valid = original_cells
+                    .get(y)
+                    .map_or(false, |timers_x| timers_x.get(x).is_some());
+                if !valid {
+                    *timer = None;
+                    continue;
+                }
+                if let Some(timer) = timer.as_mut() {
+                    if *timer > 0 {
+                        *timer -= 1;
+                    }
+                }
+            }
+        }
+
+        let events = self.inner.get_event_queue().clone();
+        for e in events.iter() {
+            match e {
+                TetrisEvent::PieceLocked(p) => {
+                    let time = if self.is_all_cool() { 0 } else { 60 * 5 };
+                    self.set_opacity_timer(p, time);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    pub fn get_tgm3events(&mut self) -> &mut Vec<TGM3Event> {
+        self.envets.as_mut()
+    }
+}
+
+impl GameState for TGM3Master {
+    fn update(&mut self) {
+        match self.status {
+            Status::Game => self.game_update(),
+            Status::Clear => {
+                if let None = self.start_roll_timer {
+                    self.start_roll_timer = Some(150)
+                }
+                if let Some(timer) = self.start_roll_timer.as_mut() {
+                    if *timer == 0 {
+                        self.inner.clear_board();
+                        self.status = Status::Roll;
+                    } else {
+                        *timer -= 1;
+                    }
+                }
+            }
+            Status::Roll => {
+                self.roll_update();
+                if let None = self.roll_timer {
+                    self.roll_timer = Some(3238);
+                }
+                if let Some(timer) = self.roll_timer.as_mut() {
+                    if *timer == 0 {
+                        self.status = Status::End;
+                    }
+                }
+            }
+            _ => {}
+        }
     }
 
     fn get_board(&self) -> Board {
