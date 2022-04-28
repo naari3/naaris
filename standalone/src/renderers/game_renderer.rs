@@ -5,11 +5,12 @@ use graphics::{
 use piston_window::{G2d, GfxDevice, Glyphs, RenderArgs};
 use tetris::{Board, Cell, FallingPiece, Game, GameState, Piece};
 
-use crate::renderers::{ORANGE, RED, YELLOW};
+use crate::{
+    renderers::{ORANGE, RED, YELLOW},
+    CELL_SIZE,
+};
 
 use super::{GetNeighbor, Renderer, ToColor, BLACK, BLUE, CYAN, GRAY, GREEN, PURPLE, WHITE};
-
-pub const CELL_SIZE: f64 = 16.0;
 
 impl Renderer for Game {
     fn render(

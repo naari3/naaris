@@ -2,7 +2,10 @@ use graphics::{types::Color, Context};
 use piston_window::{G2d, GfxDevice, Glyphs, RenderArgs};
 use tetris::Board;
 
+use crate::CELL_SIZE;
+
 pub mod game_renderer;
+pub mod tgm3master_renderer;
 
 pub trait Renderer {
     fn render(
@@ -14,8 +17,6 @@ pub trait Renderer {
         glyphs: &mut Glyphs,
     );
 }
-
-pub const CELL_SIZE: f64 = 16.0;
 
 trait ToColor {
     fn to_color(&self) -> Color;

@@ -1,3 +1,5 @@
+mode = "TGM3Master"
+
 [game]
 gravity = 20.0
 are = 10

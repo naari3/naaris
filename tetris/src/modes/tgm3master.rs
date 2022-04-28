@@ -1,0 +1,307 @@
+use std::time::{Duration, Instant};
+
+use crate::{Board, FallingPiece, Game, GameState, Input, Piece, Sound, TetrisEvent};
+
+#[derive(Debug, Clone)]
+pub struct TGM3Master {
+    pub inner: Game,
+    level: usize,
+    speed_level: usize,
+    start_time: Instant,
+    section_times: [Option<Duration>; 9],
+    cool_line_section_times: [Option<Duration>; 9],
+    cools: [Option<bool>; 9],
+    regrets: [Option<bool>; 9],
+    ending: bool,
+}
+
+impl TGM3Master {
+    pub fn new() -> Self {
+        let mut me = Self {
+            inner: Game::new(),
+            level: 0,
+            speed_level: 0,
+            start_time: Instant::now(),
+            section_times: [None; 9],
+            cool_line_section_times: [None; 9],
+            cools: [None; 9],
+            regrets: [None; 9],
+            ending: false,
+        };
+        me.sync_settings();
+        me
+    }
+
+    pub fn get_level(&self) -> usize {
+        self.level
+    }
+
+    fn get_are(&self) -> usize {
+        match self.speed_level {
+            0..=699 => 27,
+            700..=799 => 18,
+            800..=999 => 14,
+            1000..=1099 => 8,
+            1100..=1199 => 7,
+            _ => 6,
+        }
+    }
+
+    fn get_line_are(&self) -> usize {
+        match self.speed_level {
+            0..=599 => 27,
+            600..=699 => 18,
+            700..=799 => 14,
+            800..=1099 => 8,
+            1100..=1199 => 7,
+            _ => 6,
+        }
+    }
+
+    fn get_das(&self) -> usize {
+        match self.speed_level {
+            0..=499 => 15,
+            0..=899 => 9,
+            _ => 6,
+        }
+    }
+
+    fn get_line_clear_delay(&self) -> usize {
+        match self.speed_level {
+            0..=499 => 40,
+            500..=599 => 25,
+            600..=699 => 16,
+            700..=799 => 12,
+            800..=1099 => 6,
+            1100..=1199 => 5,
+            _ => 4,
+        }
+    }
+
+    fn get_lock_delay(&self) -> usize {
+        match self.speed_level {
+            0..=899 => 30,
+            900..=1099 => 17,
+            _ => 15,
+        }
+    }
+
+    fn get_gravity(&self) -> f64 {
+        match self.speed_level {
+            0..=29 => 4.0 / 256.0,
+            30..=34 => 6.0 / 256.0,
+            35..=39 => 8.0 / 256.0,
+            40..=49 => 10.0 / 256.0,
+            50..=59 => 12.0 / 256.0,
+            60..=69 => 16.0 / 256.0,
+            70..=79 => 32.0 / 256.0,
+            80..=89 => 48.0 / 256.0,
+            90..=99 => 64.0 / 256.0,
+            100..=119 => 80.0 / 256.0,
+            120..=139 => 96.0 / 256.0,
+            140..=159 => 112.0 / 256.0,
+            160..=169 => 128.0 / 256.0,
+            170..=199 => 144.0 / 256.0,
+            200..=219 => 4.0 / 256.0,
+            220..=229 => 32.0 / 256.0,
+            230..=232 => 64.0 / 256.0,
+            233..=235 => 96.0 / 256.0,
+            236..=238 => 128.0 / 256.0,
+            239..=242 => 160.0 / 256.0,
+            243..=246 => 192.0 / 256.0,
+            247..=250 => 224.0 / 256.0,
+            251..=299 => 1.0,
+            300..=329 => 2.0,
+            330..=359 => 3.0,
+            360..=399 => 4.0,
+            400..=419 => 5.0,
+            420..=449 => 4.0,
+            450..=499 => 3.0,
+            _ => 20.0,
+        }
+    }
+
+    fn cool_border(&self, rank: usize) -> Duration {
+        let set = match self.level / 100 {
+            0 => Duration::from_secs_f32(52.0),
+            1 => Duration::from_secs_f32(52.0),
+            2 => Duration::from_secs_f32(49.0),
+            3 => Duration::from_secs_f32(45.0),
+            4 => Duration::from_secs_f32(45.0),
+            5 => Duration::from_secs_f32(42.0),
+            6 => Duration::from_secs_f32(42.0),
+            7 => Duration::from_secs_f32(38.0),
+            8 => Duration::from_secs_f32(38.0),
+            _ => unreachable!(),
+        };
+        if rank > 0 {
+            let prev_rank = rank - 1;
+            let prev = self.cool_line_section_times[prev_rank].unwrap();
+            let player_border = prev + Duration::from_secs(2);
+            if player_border < set {
+                return player_border;
+            }
+        }
+        set
+    }
+
+    fn current_rank(&self) -> usize {
+        self.level / 100
+    }
+
+    fn prev_rank(&self) -> Option<usize> {
+        if self.level < 100 {
+            return None;
+        }
+        Some(self.level / 100 - 1)
+    }
+
+    fn regret_border(&self, rank: usize) -> Duration {
+        match rank {
+            0 => Duration::from_secs_f32(90.0),
+            1 => Duration::from_secs_f32(75.0),
+            2 => Duration::from_secs_f32(75.0),
+            3 => Duration::from_secs_f32(68.0),
+            4 => Duration::from_secs_f32(60.0),
+            5 => Duration::from_secs_f32(60.0),
+            6 => Duration::from_secs_f32(50.0),
+            7 => Duration::from_secs_f32(50.0),
+            8 => Duration::from_secs_f32(50.0),
+            9 => Duration::from_secs_f32(50.0),
+            _ => unreachable!(),
+        }
+    }
+
+    fn sync_settings(&mut self) {
+        self.inner.set_gravity(self.get_gravity());
+        self.inner.set_are(self.get_are());
+        self.inner.set_line_are(self.get_line_are());
+        self.inner.set_das(self.get_das());
+        self.inner.set_lock_delay(self.get_lock_delay());
+        self.inner.set_line_clear_delay(self.get_line_clear_delay());
+    }
+
+    fn level_up(&mut self, up: usize, line_clear: bool) {
+        let rank = self.current_rank();
+        let prev = self.level;
+
+        if line_clear || (prev + up) % 100 > prev % 100 && prev + up < 999 {
+            self.level += up;
+            self.speed_level += up;
+        }
+
+        if self.level % 100 >= 70 && rank < 9 && self.cool_line_section_times[rank].is_none() {
+            self.cool_line_section_times[rank] = Some(self.current_section_time());
+        }
+
+        if self.level % 100 >= 80 && rank < 9 && self.cools[rank].is_none() {
+            let current_cool_section_time = self.cool_line_section_times[rank].unwrap();
+            self.cools[rank] = Some(self.cool_border(rank) > current_cool_section_time);
+        }
+
+        if line_clear {
+            if prev % 100 > self.level % 100 {
+                if self.level > 999 {
+                    self.level = 999;
+                }
+                self.rank_up();
+            }
+        }
+    }
+
+    fn section_time_total(&self) -> Duration {
+        self.section_times
+            .into_iter()
+            .filter_map(|t| t)
+            .fold(Duration::from_secs(0), |sum, x| sum + x)
+    }
+
+    fn current_section_time(&self) -> Duration {
+        Instant::now() - self.start_time + self.section_time_total()
+    }
+
+    fn rank_up(&mut self) {
+        let section_time = self.current_section_time();
+        if self.level == 999 {
+            self.ending = true;
+            self.section_times[8] = Some(section_time);
+            let regret = self.regret_border(8) < section_time;
+            self.regrets[8] = Some(regret);
+        } else {
+            if let Some(prev_rank) = self.prev_rank() {
+                self.section_times[prev_rank] = Some(section_time);
+                let regret = self.regret_border(prev_rank) < section_time;
+                self.regrets[prev_rank] = Some(regret);
+                if !regret && self.cools[prev_rank].unwrap() {
+                    self.speed_level += 100;
+                }
+            }
+            self.inner.get_sound_queue().push(Sound::RankUp);
+        }
+    }
+}
+
+impl GameState for TGM3Master {
+    fn update(&mut self) {
+        self.inner.update();
+        let events = self.inner.get_event_queue().clone();
+        for e in events.iter() {
+            match e {
+                TetrisEvent::LineCleared(n) => {
+                    let up = match n {
+                        3 => 4,
+                        4 => 6,
+                        _ => *n,
+                    };
+                    self.level_up(up, true);
+                }
+                TetrisEvent::PieceSpawned(_) => {
+                    println!("spawned");
+                    self.level_up(6, false);
+                }
+                _ => {}
+            }
+        }
+        self.sync_settings();
+    }
+
+    fn get_board(&self) -> Board {
+        self.inner.get_board()
+    }
+
+    fn get_current_piece(&self) -> Option<FallingPiece> {
+        self.inner.get_current_piece()
+    }
+
+    fn get_locked_piece(&self) -> Option<FallingPiece> {
+        self.inner.get_locked_piece()
+    }
+
+    fn get_hold(&self) -> Option<Piece> {
+        self.inner.get_hold()
+    }
+
+    fn get_next(&self) -> Piece {
+        self.inner.get_next()
+    }
+
+    fn get_next_next(&self) -> Piece {
+        self.inner.get_next_next()
+    }
+
+    fn get_next_next_next(&self) -> Piece {
+        self.inner.get_next_next_next()
+    }
+
+    fn get_sound_queue(&mut self) -> &mut Vec<Sound> {
+        self.inner.get_sound_queue()
+    }
+
+    fn get_event_queue(&mut self) -> &mut Vec<TetrisEvent> {
+        self.inner.get_event_queue()
+    }
+
+    fn set_input(&mut self, input: Input) {
+        self.inner.set_input(input)
+    }
+}

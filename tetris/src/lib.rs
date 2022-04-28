@@ -1,11 +1,13 @@
 mod board;
 mod cell;
 mod game;
+mod modes;
 mod piece;
 
 pub use board::*;
 pub use cell::*;
 pub use game::*;
+pub use modes::*;
 pub use piece::*;
 
 use thiserror::Error;
@@ -44,10 +46,12 @@ pub enum Sound {
     PieceJ,
     PieceS,
     PieceZ,
+    RankUp,
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum TetrisEvent {
     LineCleared(usize),
+    PieceSpawned(Piece),
     PieceLocked(FallingPiece),
 }

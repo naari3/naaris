@@ -12,4 +12,5 @@ pub fn init() {
     music::bind_sound_file(PieceJ, "./assets/piece_j.wav");
     music::bind_sound_file(PieceS, "./assets/piece_s.wav");
     music::bind_sound_file(PieceZ, "./assets/piece_z.wav");
+    music::bind_sound_file(RankUp, "./assets/rank_up.wav");
 }

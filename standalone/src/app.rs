@@ -7,29 +7,28 @@ use graphics::{
 use piston_window::{
     Button, ButtonArgs, ButtonState, Context, G2d, GfxDevice, Glyphs, RenderArgs, Transformed,
 };
-use tetris::{FallingPiece, Game, GameState, Input};
+use tetris::{GameState, Input};
 
-use crate::{renderers::Renderer, settings::Settings};
+use crate::{renderers::Renderer, settings::KeyConfig};
 
-pub struct App {
+pub struct App<G: GameState + Renderer, R: FnMut() -> G> {
     fps: FPSCounter,
     glyphs: Glyphs,
-    game: Game,   // Game
+    game: G,      // Game
     input: Input, // Input
-    settings: Settings,
-    locked_piece: Option<FallingPiece>,
+    key_config: KeyConfig,
+    reset: R,
 }
-pub const CELL_SIZE: f64 = 16.0;
 
-impl App {
-    pub fn new(game: Game, settings: Settings, glyphs: Glyphs) -> Self {
+impl<G: GameState + Renderer, R: FnMut() -> G> App<G, R> {
+    pub fn new(game: G, key_config: KeyConfig, glyphs: Glyphs, reset: R) -> Self {
         Self {
             fps: FPSCounter::default(),
             glyphs,
             game,
             input: Default::default(),
-            settings,
-            locked_piece: None,
+            key_config,
+            reset,
         }
     }
 
@@ -69,10 +68,8 @@ impl App {
             while event_queue.len() > 0 {
                 if let Some(event) = event_queue.pop() {
                     match event {
-                        tetris::TetrisEvent::PieceLocked(piece) => {
-                            self.locked_piece = Some(piece);
-                        }
-                        _ => unimplemented!(),
+                        // tetris::TetrisEvent::PieceLocked() => {}
+                        _ => {}
                     }
                 };
             }
@@ -87,40 +84,33 @@ impl App {
         match args.button {
             Button::Keyboard(key) => match key {
                 _ => {
-                    if self.settings.key.left == key.code() as _ {
+                    if self.key_config.left == key.code() as _ {
                         self.input.left = state;
                     }
-                    if self.settings.key.right == key.code() as _ {
+                    if self.key_config.right == key.code() as _ {
                         self.input.right = state;
                     }
-                    if self.settings.key.hard_drop == key.code() as _ {
+                    if self.key_config.hard_drop == key.code() as _ {
                         self.input.hard_drop = state;
                     }
-                    if self.settings.key.soft_drop == key.code() as _ {
+                    if self.key_config.soft_drop == key.code() as _ {
                         self.input.soft_drop = state;
                     }
-                    if self.settings.key.cw == key.code() as _ {
+                    if self.key_config.cw == key.code() as _ {
                         self.input.cw = state;
                     }
-                    if self.settings.key.ccw == key.code() as _ {
+                    if self.key_config.ccw == key.code() as _ {
                         self.input.ccw = state;
                     }
-                    if self.settings.key.hold == key.code() as _ {
+                    if self.key_config.hold == key.code() as _ {
                         self.input.hold = state;
                     }
-                    if self.settings.key.restart == key.code() as _ && !state {
-                        self.game = Game::from_settings(
-                            self.settings.game.gravity,
-                            self.settings.game.are,
-                            self.settings.game.line_are,
-                            self.settings.game.das,
-                            self.settings.game.lock_delay,
-                            self.settings.game.line_clear_delay,
-                        );
+                    if self.key_config.restart == key.code() as _ && !state {
+                        self.game = (self.reset)();
                     }
 
                     println!("key.code(): {}", key.code());
-                    // self.settings.key_config
+                    // self.key_config_config
                 }
             },
             _ => {}

@@ -29,6 +29,7 @@ pub trait GameState {
     fn set_input(&mut self, input: Input);
 }
 
+#[derive(Debug, Clone)]
 pub struct Game {
     board: Board,
     current_piece: Option<FallingPiece>,
@@ -171,6 +172,30 @@ impl Game {
         }
     }
 
+    pub fn set_gravity(&mut self, gravity: f64) {
+        self.gravity = gravity;
+    }
+
+    pub fn set_are(&mut self, are: usize) {
+        self.are = are;
+    }
+
+    pub fn set_line_are(&mut self, line_are: usize) {
+        self.line_are = line_are;
+    }
+
+    pub fn set_das(&mut self, das: usize) {
+        self.das = das;
+    }
+
+    pub fn set_lock_delay(&mut self, lock_delay: usize) {
+        self.lock_delay = lock_delay;
+    }
+
+    pub fn set_line_clear_delay(&mut self, line_clear_delay: usize) {
+        self.line_clear_lock = line_clear_delay;
+    }
+
     fn apply_gravity(&mut self) {
         if let Some(mut current_piece) = self.current_piece.clone() {
             if current_piece.check_shift_collision(&self.board, 0, 1) {
@@ -219,7 +244,8 @@ impl Game {
     }
 
     fn apply_line_clear(&mut self) {
-        if let Some(_lines) = self.board.line_clear() {
+        if let Some(lines) = self.board.line_clear() {
+            self.event_queue.push(TetrisEvent::LineCleared(lines));
             self.sound_queue.push(Sound::Erase);
             self.line_clear_lock_timer = Some(self.line_clear_lock);
             self.are_counter = Some(self.line_are);
@@ -376,6 +402,9 @@ impl GameState for Game {
                     if *are_counter <= 0 {
                         let next_piece = PieceState::from_piece(self.board.pop_next());
                         self.current_piece = FallingPiece::from_piece_state(next_piece).into();
+                        self.shift_down_counter = 0.0;
+                        self.event_queue
+                            .push(TetrisEvent::PieceSpawned(next_piece.get_kind()));
 
                         let sound = self.get_next_sound();
                         self.sound_queue.push(sound);
