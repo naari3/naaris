@@ -16,6 +16,7 @@ pub enum StandaloneSound {
     PieceZ,
     RankUp,
     Cool,
+    GameClear,
 }
 
 impl From<Sound> for StandaloneSound {
@@ -44,6 +45,7 @@ impl From<TGM3Sound> for StandaloneSound {
         use StandaloneSound::*;
         match s {
             TGM3Sound::Cool => Cool,
+            TGM3Sound::GameClear => GameClear,
         }
     }
 }

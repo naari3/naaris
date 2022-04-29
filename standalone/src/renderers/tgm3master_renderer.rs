@@ -71,6 +71,24 @@ impl Renderer for TGM3Master {
                 g2d,
             )
             .unwrap();
+
+        if let Status::End = self.get_status() {
+            rectangle(
+                BLACK.to_color(),
+                [0.0, 0.0, CELL_SIZE * 9.0, CELL_SIZE * 3.0],
+                c.transform.trans(CELL_SIZE * 1.5, CELL_SIZE * 12.0),
+                g2d,
+            );
+            Text::new_color(WHITE.to_color(), 8)
+                .draw(
+                    &format!("congrats!"),
+                    glyphs,
+                    &c.draw_state,
+                    c.transform.trans(CELL_SIZE * 2.0, CELL_SIZE * 13.0),
+                    g2d,
+                )
+                .unwrap();
+        }
     }
 }
 

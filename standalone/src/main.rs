@@ -15,7 +15,7 @@ use piston_window::{ButtonEvent, EventLoop, PistonWindow, RenderEvent, WindowSet
 use renderers::Renderer;
 use settings::{GameMode, Settings};
 use sound::StandaloneSound;
-use tetris::{Game, GameState, Music, Sound, TGM3Master};
+use tetris::{Game, GameState, Music, TGM3Master};
 
 fn main() {
     let mut window: PistonWindow = WindowSettings::new(

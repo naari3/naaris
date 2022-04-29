@@ -28,6 +28,7 @@ pub enum TGM3Event {
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum TGM3Sound {
     Cool,
+    GameClear,
 }
 
 #[derive(Debug, Clone)]
@@ -250,7 +251,7 @@ impl TGM3Master {
         }
 
         if line_clear {
-            if prev % 100 > self.level % 100 {
+            if prev % 100 > self.level % 100 || self.level > 998 {
                 if self.level > 999 {
                     self.level = 999;
                 }
@@ -275,6 +276,7 @@ impl TGM3Master {
         if self.level == 999 {
             self.status = Status::Clear;
             self.envets.push(TGM3Event::StatusChange(Status::Clear));
+            self.sounds.push(TGM3Sound::GameClear);
             self.section_times[8] = Some(section_time);
             let regret = self.regret_border(8) < section_time;
             self.regrets[8] = Some(regret);
@@ -424,6 +426,7 @@ impl GameState for TGM3Master {
                 if let Some(timer) = self.roll_timer.as_mut() {
                     if *timer == 0 {
                         self.status = Status::End;
+                        return;
                     }
                     *timer -= 1;
                 }
