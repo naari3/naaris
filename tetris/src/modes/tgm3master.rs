@@ -21,6 +21,13 @@ pub enum Roll {
 #[derive(Debug, Clone)]
 pub enum TGM3Event {
     StatusChange(Status),
+    GotCool,
+    GotRegret,
+}
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub enum TGM3Sound {
+    Cool,
 }
 
 #[derive(Debug, Clone)]
@@ -37,6 +44,7 @@ pub struct TGM3Master {
     start_roll_timer: Option<usize>,
     roll_timer: Option<usize>,
     envets: Vec<TGM3Event>,
+    sounds: Vec<TGM3Sound>,
     opacity_timers: ArrayVec<ArrayVec<Option<usize>, 10>, 40>,
 }
 
@@ -59,6 +67,7 @@ impl TGM3Master {
             start_roll_timer: None,
             roll_timer: None,
             envets: vec![],
+            sounds: vec![],
             opacity_timers,
         };
         me.sync_settings();
@@ -219,7 +228,7 @@ impl TGM3Master {
         let rank = self.current_rank();
         let prev = self.level;
 
-        if line_clear || (prev + up) % 100 > prev % 100 && prev + up < 999 {
+        if line_clear || (prev + up) % 100 > prev % 100 && prev + up < 998 {
             self.level += up;
             self.speed_level += up;
         }
@@ -230,7 +239,13 @@ impl TGM3Master {
 
         if self.level % 100 >= 80 && rank < 9 && self.cools[rank].is_none() {
             if let Some(current_cool_section_time) = self.cool_line_section_times[rank] {
-                self.cools[rank] = Some(self.cool_border(rank) > current_cool_section_time);
+                let cool = self.cool_border(rank) > current_cool_section_time;
+                self.cools[rank] = Some(cool);
+                println!("cool: {cool}");
+                if cool {
+                    self.envets.push(TGM3Event::GotCool);
+                    self.sounds.push(TGM3Sound::Cool);
+                }
             }
         }
 
@@ -252,7 +267,7 @@ impl TGM3Master {
     }
 
     fn current_section_time(&self) -> Duration {
-        Instant::now() - self.start_time + self.section_time_total()
+        Instant::now() - self.start_time - self.section_time_total()
     }
 
     fn rank_up(&mut self) {
@@ -263,6 +278,9 @@ impl TGM3Master {
             self.section_times[8] = Some(section_time);
             let regret = self.regret_border(8) < section_time;
             self.regrets[8] = Some(regret);
+            if regret {
+                self.envets.push(TGM3Event::GotRegret);
+            }
         } else {
             if let Some(prev_rank) = self.prev_rank() {
                 self.section_times[prev_rank] = Some(section_time);
@@ -364,6 +382,10 @@ impl TGM3Master {
         self.envets.as_mut()
     }
 
+    pub fn get_tgm3sounds(&mut self) -> &mut Vec<TGM3Sound> {
+        self.sounds.as_mut()
+    }
+
     pub fn get_opacity_timers(&self) -> ArrayVec<ArrayVec<Option<usize>, 10>, 40> {
         self.opacity_timers.clone()
     }
@@ -403,6 +425,7 @@ impl GameState for TGM3Master {
                     if *timer == 0 {
                         self.status = Status::End;
                     }
+                    *timer -= 1;
                 }
             }
             _ => {}

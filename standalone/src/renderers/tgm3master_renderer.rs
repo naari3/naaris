@@ -7,6 +7,7 @@ use tetris::{Board, Cell, GameState, Roll, Status, TGM3Master};
 
 use crate::{
     renderers::{PieceLineInfo, BLACK, BLUE, CYAN, GRAY, GREEN, ORANGE, PURPLE, RED, YELLOW},
+    sound::StandaloneSound,
     CELL_SIZE,
 };
 
@@ -22,6 +23,29 @@ impl Renderer for TGM3Master {
         glyphs: &mut Glyphs,
     ) {
         standard_render(self, args, c, g2d, d, glyphs);
+        {
+            let event_queue = self.get_tgm3events();
+            while event_queue.len() > 0 {
+                if let Some(event) = event_queue.pop() {
+                    match event {
+                        // tetris::TetrisEvent::PieceLocked() => {}
+                        _ => {}
+                    }
+                };
+            }
+        }
+        {
+            let sound_queue = self.get_tgm3sounds();
+            while sound_queue.len() > 0 {
+                if let Some(sound) = sound_queue.pop() {
+                    music::play_sound::<StandaloneSound>(
+                        &sound.into(),
+                        music::Repeat::Times(0),
+                        0.25,
+                    );
+                };
+            }
+        }
 
         Text::new_color(WHITE.to_color(), 8)
             .draw(

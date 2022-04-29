@@ -9,7 +9,7 @@ use piston_window::{
 };
 use tetris::{GameState, Input};
 
-use crate::{renderers::Renderer, settings::KeyConfig};
+use crate::{renderers::Renderer, settings::KeyConfig, sound::StandaloneSound};
 
 pub struct App<G: GameState + Renderer, R: FnMut() -> G> {
     fps: FPSCounter,
@@ -59,7 +59,11 @@ impl<G: GameState + Renderer, R: FnMut() -> G> App<G, R> {
             let sound_queue = self.game.get_sound_queue();
             while sound_queue.len() > 0 {
                 if let Some(sound) = sound_queue.pop() {
-                    music::play_sound(&sound, music::Repeat::Times(0), 0.25);
+                    music::play_sound::<StandaloneSound>(
+                        &sound.into(),
+                        music::Repeat::Times(0),
+                        0.25,
+                    );
                 };
             }
         }

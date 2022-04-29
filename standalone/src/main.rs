@@ -14,6 +14,7 @@ pub const CELL_SIZE: f64 = 16.0;
 use piston_window::{ButtonEvent, EventLoop, PistonWindow, RenderEvent, WindowSettings};
 use renderers::Renderer;
 use settings::{GameMode, Settings};
+use sound::StandaloneSound;
 use tetris::{Game, GameState, Music, Sound, TGM3Master};
 
 fn main() {
@@ -78,7 +79,7 @@ fn main_loop<G: GameState + Renderer, R: FnMut() -> G>(
     mut window: PistonWindow,
     mut app: App<G, R>,
 ) {
-    music::start::<Music, Sound, _>(256, || {
+    music::start::<Music, StandaloneSound, _>(256, || {
         sound::init();
         music::set_volume(0.5);
         while let Some(event) = window.next() {
