@@ -74,7 +74,7 @@ enum PieceLine {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct PieceLineInfo(usize, usize, PieceLine, (usize, usize));
+struct PieceLineInfo(isize, isize, PieceLine, (isize, isize));
 
 impl PieceLineInfo {
     fn to_from_to(&self) -> ([f64; 2], [f64; 2]) {
@@ -136,17 +136,17 @@ impl GetNeighbor for Board {
     fn get_line_infos(&self) -> Vec<PieceLineInfo> {
         let cell_offset_y = 20;
         let mut line_infos = vec![];
-        for x in 0..10usize {
-            for y in (0usize + cell_offset_y)..(20 + cell_offset_y) {
-                if let Some(has_center) = self.exists(x, y) {
+        for x in 0..10isize {
+            for y in (0isize + cell_offset_y)..(20 + cell_offset_y) {
+                if let Some(has_center) = self.exists(x as _, y as _) {
                     if has_center {
                         continue;
                     }
                     for offset_x in -1..=1 {
                         for offset_y in -1..=1 {
-                            let target_x = (x as isize).saturating_add(offset_x) as usize;
-                            let target_y = (y as isize).saturating_add(offset_y) as usize;
-                            if let Some(exist) = self.exists(target_x, target_y) {
+                            let target_x = (x as isize) + offset_x;
+                            let target_y = (y as isize) + offset_y;
+                            if let Some(exist) = self.exists(target_x as _, target_y as _) {
                                 if !exist {
                                     continue;
                                 }
@@ -166,8 +166,8 @@ impl GetNeighbor for Board {
                                     y - cell_offset_y,
                                     kind,
                                     (
-                                        (x as isize + offset_x) as _,
-                                        ((y - cell_offset_y) as isize + offset_y) as _,
+                                        (x as isize + offset_x),
+                                        ((y - cell_offset_y) as isize + offset_y),
                                     ),
                                 ))
                             }

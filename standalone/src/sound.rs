@@ -66,4 +66,5 @@ pub fn init() {
     music::bind_sound_file(PieceZ, "./assets/piece_z.wav");
     music::bind_sound_file(RankUp, "./assets/rank_up.wav");
     music::bind_sound_file(Cool, "./assets/cool.wav");
+    music::bind_sound_file(GameClear, "./assets/gameclear.wav");
 }

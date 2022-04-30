@@ -36,6 +36,9 @@ pub struct TGM3Master {
     pub inner: Game,
     level: usize,
     speed_level: usize,
+    grade_points: usize,
+    grade: usize,
+    roll_points: usize,
     start_time: Instant,
     section_times: [Option<Duration>; 9],
     cool_line_section_times: [Option<Duration>; 9],
@@ -59,6 +62,9 @@ impl TGM3Master {
             inner: Game::new(),
             level: 0,
             speed_level: 0,
+            grade_points: 0,
+            grade: 0,
+            roll_points: 0,
             start_time: Instant::now(),
             section_times: [None; 9],
             cool_line_section_times: [None; 9],
@@ -216,6 +222,50 @@ impl TGM3Master {
         }
     }
 
+    fn get_grade_point_bonus(&self, n: usize) -> usize {
+        [
+            [10, 20, 40, 50],
+            [10, 20, 30, 40],
+            [10, 20, 30, 40],
+            [10, 15, 30, 40],
+            [10, 15, 20, 40],
+            [5, 15, 20, 30],
+            [5, 10, 20, 30],
+            [5, 10, 15, 30],
+            [5, 10, 15, 30],
+            [5, 10, 15, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+            [2, 12, 13, 30],
+        ][self.grade][n - 1]
+    }
+
+    fn get_roll_points(&self, n: usize) -> usize {
+        [4, 8, 12, 26][n - 1]
+    }
+    fn get_mroll_points(&self, n: usize) -> usize {
+        [10, 20, 30, 100][n - 1]
+    }
+
     fn sync_settings(&mut self) {
         self.inner.set_gravity(self.get_gravity());
         self.inner.set_are(self.get_are());
@@ -300,18 +350,34 @@ impl TGM3Master {
         }
     }
 
+    fn game_line_clear(&mut self, n: usize) {
+        self.grade_points += self.get_grade_point_bonus(n) * 1 /* combo */ * (self.level / 250 + 1);
+        if self.grade < 31 && self.grade_points >= 100 {
+            self.grade_points = 0;
+            self.grade += 1;
+        }
+        let up = match n {
+            3 => 4,
+            4 => 6,
+            _ => n,
+        };
+        self.level_up(up, true);
+    }
+
+    fn roll_line_clear(&mut self, n: usize, roll: Roll) {
+        self.roll_points += match roll {
+            Roll::Normal => self.get_roll_points(n),
+            Roll::Invisible => self.get_mroll_points(n),
+        }
+    }
+
     fn game_update(&mut self) {
         self.inner.update();
         let events = self.inner.get_event_queue().clone();
         for e in events.iter() {
             match e {
                 TetrisEvent::LineCleared(n) => {
-                    let up = match n {
-                        3 => 4,
-                        4 => 6,
-                        _ => *n,
-                    };
-                    self.level_up(up, true);
+                    self.game_line_clear(*n);
                 }
                 TetrisEvent::PieceSpawned(_) => {
                     self.level_up(1, false);
@@ -360,6 +426,9 @@ impl TGM3Master {
         let events = self.inner.get_event_queue().clone();
         for e in events.iter() {
             match e {
+                TetrisEvent::LineCleared(n) => {
+                    self.roll_line_clear(*n, roll);
+                }
                 TetrisEvent::PieceLocked(p) => {
                     let time = match roll {
                         Roll::Normal => 60 * 5,
@@ -395,6 +464,23 @@ impl TGM3Master {
     pub fn get_status(&self) -> Status {
         self.status
     }
+
+    pub fn get_aggregate_grade(&self) -> usize {
+        self.cools
+            .into_iter()
+            .filter_map(|t| t)
+            .fold(0, |sum, c| sum + if c { 1 } else { 0 })
+            + self.roll_points / 100
+            + [
+                0, 1, 2, 3, 4, 5, 5, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 11, 12, 12, 12, 13, 13,
+                14, 14, 15, 15, 16, 16, 17,
+            ][self.grade]
+            - self
+                .regrets
+                .into_iter()
+                .filter_map(|t| t)
+                .fold(0, |sum, c| sum + if c { 1 } else { 0 })
+    }
 }
 
 impl GameState for TGM3Master {
@@ -408,6 +494,7 @@ impl GameState for TGM3Master {
                 if let Some(timer) = self.start_roll_timer.as_mut() {
                     if *timer == 0 {
                         self.inner.clear_board();
+                        // self.status = Status::Roll(if true {
                         self.status = Status::Roll(if self.is_all_cool() {
                             Roll::Invisible
                         } else {

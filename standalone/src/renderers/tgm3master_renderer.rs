@@ -79,9 +79,14 @@ impl Renderer for TGM3Master {
                 c.transform.trans(CELL_SIZE * 1.5, CELL_SIZE * 12.0),
                 g2d,
             );
+            let grade = [
+                "9", "8", "7", "6", "5", "4", "3", "2", "1", "S1", "S2", "S3", "S4", "S5", "S6",
+                "S7", "S8", "S9", "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "M", "MK",
+                "MV", "MO", "MM", "GM",
+            ][self.get_aggregate_grade()];
             Text::new_color(WHITE.to_color(), 8)
                 .draw(
-                    &format!("congrats!"),
+                    &format!("congrats!: {grade}"),
                     glyphs,
                     &c.draw_state,
                     c.transform.trans(CELL_SIZE * 2.0, CELL_SIZE * 13.0),
@@ -178,13 +183,20 @@ impl RenderInner for TGM3Master {
         for line_info in board.get_line_infos().iter() {
             let &PieceLineInfo(_, _, _, (target_x, target_y)) = line_info;
             let mut color = WHITE.to_color();
+            if target_y > 50 {
+                println!("target_y: {target_y}");
+            }
             if let Status::Roll(roll) = self.get_status() {
-                let timer = timers
-                    .get(target_y + cell_offset_y)
-                    .map_or(None, |timers_x| timers_x.get(target_x))
-                    .unwrap_or(&None)
-                    .as_ref()
-                    .map(|&t| t);
+                let timer = if target_y >= 0 {
+                    timers
+                        .get((target_y + cell_offset_y as isize) as usize)
+                        .map_or(None, |timers_x| timers_x.get(target_x as usize))
+                        .unwrap_or(&None)
+                        .as_ref()
+                        .map(|&t| t)
+                } else {
+                    None
+                };
                 color[3] = timer_to_opacity(timer, roll);
             }
             let (from, to) = line_info.to_from_to();
