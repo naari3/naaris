@@ -2,14 +2,14 @@ use fps_counter::FPSCounter;
 use graphics::{
     clear,
     color::{BLACK, WHITE},
-    Text,
+    rectangle, Text,
 };
 use piston_window::{
     Button, ButtonArgs, ButtonState, Context, G2d, GfxDevice, Glyphs, RenderArgs, Transformed,
 };
 use tetris::{GameState, Input};
 
-use crate::{renderers::Renderer, settings::KeyConfig, sound::StandaloneSound};
+use crate::{renderers::Renderer, settings::KeyConfig, sound::StandaloneSound, CELL_SIZE};
 
 pub struct App<G: GameState + Renderer, R: FnMut() -> G> {
     fps: FPSCounter,
@@ -18,6 +18,7 @@ pub struct App<G: GameState + Renderer, R: FnMut() -> G> {
     input: Input, // Input
     key_config: KeyConfig,
     reset: R,
+    pause: bool,
 }
 
 impl<G: GameState + Renderer, R: FnMut() -> G> App<G, R> {
@@ -29,6 +30,7 @@ impl<G: GameState + Renderer, R: FnMut() -> G> App<G, R> {
             input: Default::default(),
             key_config,
             reset,
+            pause: false,
         }
     }
 
@@ -49,12 +51,31 @@ impl<G: GameState + Renderer, R: FnMut() -> G> App<G, R> {
                 g2d,
             )
             .unwrap();
+        if self.pause {
+            rectangle(
+                BLACK,
+                [0.0, 0.0, CELL_SIZE * 9.0, CELL_SIZE * 1.0],
+                c.transform.trans(CELL_SIZE * 1.5, CELL_SIZE * 12.5),
+                g2d,
+            );
+            Text::new_color(WHITE, 8)
+                .draw(
+                    &format!("pause"),
+                    &mut self.glyphs,
+                    &c.draw_state,
+                    c.transform.trans(CELL_SIZE * 2.0, CELL_SIZE * 13.0),
+                    g2d,
+                )
+                .unwrap();
+        }
         self.glyphs.factory.encoder.flush(d);
     }
 
     pub fn update(&mut self) {
         self.game.set_input(self.input);
-        self.game.update();
+        if !self.pause {
+            self.game.update();
+        }
         {
             let sound_queue = self.game.get_sound_queue();
             while sound_queue.len() > 0 {
@@ -111,6 +132,9 @@ impl<G: GameState + Renderer, R: FnMut() -> G> App<G, R> {
                     }
                     if self.key_config.restart == key.code() as _ && !state {
                         self.game = (self.reset)();
+                    }
+                    if self.key_config.pause == key.code() as _ && !state {
+                        self.pause = !self.pause;
                     }
 
                     println!("key.code(): {}", key.code());

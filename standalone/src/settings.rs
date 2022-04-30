@@ -39,4 +39,5 @@ pub struct KeyConfig {
     pub ccw: usize,
     pub hold: usize,
     pub restart: usize,
+    pub pause: usize,
 }
